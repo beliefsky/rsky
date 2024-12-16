@@ -1,6 +1,0 @@
-
-
-#[cfg(windows)]
-    struct Aa {
-
-    }

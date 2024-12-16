@@ -4,3 +4,23 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+mio = "1"
+futures = "^0.3"
+hyper = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
+http-body-util = "0.1"
+hyper-util = { version = "0.1", features = ["full"] }
+
+
+[target.'cfg(windows)'.dependencies.windows-sys]
+version = "0.59"
+features = [
+  "Wdk_Foundation",                   # Required for AFD.
+  "Wdk_Storage_FileSystem",           # Required for AFD.
+  "Wdk_System_IO",                    # Required for AFD.
+  "Win32_Foundation",                 # Basic types eg HANDLE
+  "Win32_Networking_WinSock",         # winsock2 types/functions
+  "Win32_Storage_FileSystem",         # Enables NtCreateFile
+  "Win32_System_IO",                  # IO types like OVERLAPPED etc
+  "Win32_System_WindowsProgramming",  # General future used for various types/funcs
+]
