@@ -1,16 +1,21 @@
 #[cfg(test)]
 mod tests {
-    use std::{future::Future, sync::{Arc, Mutex}, thread, time::Duration};
     use futures::executor::block_on;
+    use std::{
+        future::Future,
+        sync::{Arc, Mutex},
+        thread,
+        time::Duration,
+    };
 
     #[test]
     fn async_test() {
-
         let share_state = Arc::new(Mutex::new(ShareData::new()));
 
         let thread_share_state = Arc::clone(&share_state);
-        thread::spawn(move || { // 创建一个线程，让回调延迟10秒
-            thread::sleep(Duration::from_secs(5)); 
+        thread::spawn(move || {
+            // 创建一个线程，让回调延迟10秒
+            thread::sleep(Duration::from_secs(5));
             let mut state = thread_share_state.lock().unwrap();
             state.count = 5;
             if let Some(waker) = state.waker.take() {
@@ -23,7 +28,7 @@ mod tests {
         println!("==========> {}", result);
     }
 
-    async fn async_func(state:  Arc<Mutex<ShareData>>) -> u32 {
+    async fn async_func(state: Arc<Mutex<ShareData>>) -> u32 {
         Reader::new(state).await
     }
 
@@ -36,28 +41,28 @@ mod tests {
         pub(crate) fn new() -> Self {
             ShareData {
                 count: 0,
-                waker: None
+                waker: None,
             }
         }
     }
 
     struct Reader {
-        state: Arc<Mutex<ShareData>>
+        state: Arc<Mutex<ShareData>>,
     }
 
     impl Reader {
         pub(crate) fn new(data: Arc<Mutex<ShareData>>) -> Self {
-            Self {
-                state: data
-            }
+            Self { state: data }
         }
     }
 
-    
     impl Future for Reader {
         type Output = u32;
-        
-        fn poll(self: std::pin::Pin<&mut Self>, ctx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+
+        fn poll(
+            self: std::pin::Pin<&mut Self>,
+            ctx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Self::Output> {
             let mut state = self.state.lock().unwrap();
 
             if state.count == 0 {
@@ -71,4 +76,3 @@ mod tests {
         }
     }
 }
-
