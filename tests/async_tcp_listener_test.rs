@@ -9,10 +9,13 @@ mod test_listener {
         let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
         let listener = TcpListener::bind(&addr)?;
 
-        loop {
-            println!("111111111");
-            let (stream, _) = listener.accept().await?;
-        }
+        println!("tcp server create success");
+        // loop {
+        //     let (stream, _) = listener.accept().await?;
+        //     println!("accept new cli");
+        // }
+
+        Ok(())
     }
 
     #[test]

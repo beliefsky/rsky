@@ -10,7 +10,7 @@ pub struct Tcp {
 
 impl Tcp {
     #[inline]
-    pub(crate) fn new<T>(domain: &T) -> io::Result<Self>
+    pub(crate) fn new<T>(domain: T) -> io::Result<Self>
     where
         T: SocketDomain,
     {
@@ -18,7 +18,7 @@ impl Tcp {
     }
 
     #[inline]
-    pub fn bind<T>(&self, addr: &T) -> io::Result<()>
+    pub fn bind<T>(&self, addr: T) -> io::Result<()>
     where
         T: SocketAddrNative,
     {
@@ -31,6 +31,9 @@ impl Tcp {
     }
 
     pub async fn accept(&self) -> io::Result<(Self, SocketAddr)> {
-        Err(io::Error::last_os_error())
+        self.sock
+            .accept()
+            .await
+            .map(|(sock, addr)| (Self { sock }, addr))
     }
 }

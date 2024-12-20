@@ -5,7 +5,6 @@ mod tests {
         future::Future,
         sync::{Arc, Mutex},
         thread,
-        time::Duration,
     };
 
     #[test]
@@ -15,11 +14,13 @@ mod tests {
         let thread_share_state = Arc::clone(&share_state);
         thread::spawn(move || {
             // 创建一个线程，让回调延迟10秒
-            thread::sleep(Duration::from_secs(5));
-            let mut state = thread_share_state.lock().unwrap();
-            state.count = 5;
-            if let Some(waker) = state.waker.take() {
-                waker.wake()
+            for i in 0..10 {
+                println!("loop {}", i);
+                let mut state = thread_share_state.lock().unwrap();
+                state.count += 1;
+                if let Some(waker) = state.waker.take() {
+                    waker.wake_by_ref();
+                }
             }
         });
 
@@ -64,9 +65,9 @@ mod tests {
             ctx: &mut std::task::Context<'_>,
         ) -> std::task::Poll<Self::Output> {
             let mut state = self.state.lock().unwrap();
-
             if state.count == 0 {
                 if state.waker.is_none() {
+                    ctx.waker().wake_by_ref();
                     state.waker = Some(ctx.waker().clone());
                 }
                 std::task::Poll::Pending

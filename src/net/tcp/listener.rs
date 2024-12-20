@@ -20,7 +20,9 @@ impl TcpListener {
     }
 
     pub async fn accept(&self) -> io::Result<(TcpStream, SocketAddr)> {
-        let r = self.listener.accept().await;
-        r.map(|(tcp, addr)| (TcpStream::new(tcp), addr))
+        self.listener
+            .accept()
+            .await
+            .map(|(tcp, addr)| (TcpStream::new(tcp), addr))
     }
 }
