@@ -28,7 +28,7 @@ impl Accept {
             Err(ref e) => Err(io::Error::new(e.kind(), e.to_string())),
         }?;
 
-        let accept_socket = Socket::new(&socket.domain, socket.socket_type)?;
+        let accept_socket = Socket::new(socket.domain, socket.socket_type)?;
 
         let accept = Self {
             accept_socket: accept_socket,

@@ -67,7 +67,6 @@ mod tests {
             let mut state = self.state.lock().unwrap();
             if state.count == 0 {
                 if state.waker.is_none() {
-                    ctx.waker().wake_by_ref();
                     state.waker = Some(ctx.waker().clone());
                 }
                 std::task::Poll::Pending
