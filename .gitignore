@@ -1,0 +1,8 @@
+.idea/
+.vscode/
+build/
+target/
+*.lock
+img/
+video/
+dist/
