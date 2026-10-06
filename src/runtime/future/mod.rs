@@ -6,7 +6,7 @@ use crate::{
 };
 
 mod combinator;
-pub use combinator::*;
+pub(crate) use combinator::*;
 
 mod future;
 pub use future::*;

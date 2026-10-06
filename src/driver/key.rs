@@ -5,7 +5,7 @@ use std::{
     task::Waker,
 };
 
-use thin_cell::unsync::{Inner, Ref, ThinCell, Weak};
+use thin_cell::unsync::{Inner, Ref, ThinCell};
 
 use crate::{
     buf::{BufResult, IntoInner},
@@ -19,10 +19,6 @@ pub struct Key<T> {
 }
 
 impl<T> Key<T> {
-    // pub(crate) fn into_raw(self) -> usize {
-    //     self.erased.into_raw()
-    // }
-
     pub(crate) fn erase(self) -> ErasedKey {
         self.erased
     }

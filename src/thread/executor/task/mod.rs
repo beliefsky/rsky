@@ -1,6 +1,5 @@
 use std::{
     array,
-    fmt::Debug,
     mem::{ManuallyDrop, MaybeUninit, offset_of},
     panic::{AssertUnwindSafe, catch_unwind},
     pin::Pin,
@@ -16,7 +15,7 @@ use super::{
     task::{
         local::Local,
         remote::Remote,
-        state::{State, Strong, Weak},
+        state::{State, Strong},
     },
     util::{panic_guard, transpose},
 };

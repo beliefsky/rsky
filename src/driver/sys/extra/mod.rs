@@ -1,11 +1,9 @@
-use std::ops::{Deref, DerefMut};
-
 use crate::driver::Driver;
 
 mod iour;
 use iour as sys;
 
-pub use sys::*;
+pub(in crate::driver::sys) use sys::*;
 
 #[repr(transparent)]
 pub struct Extra(pub(super) sys::Extra);

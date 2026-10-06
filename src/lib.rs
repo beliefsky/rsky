@@ -20,21 +20,17 @@ mod tests {
     pub struct TestOp {}
 
     unsafe impl driver::OpCode for TestOp {
-        type Control = usize;
+        type Control = ();
 
-        fn create_entry(&mut self, a: &mut Self::Control) -> driver::OpEntry {
-            println!("========> {}", a);
-            *a = 2;
+        fn create_entry(&mut self, _: &mut Self::Control) -> driver::OpEntry {
             io_uring::opcode::Socket::new(2, 1, 6).build().into()
         }
         unsafe fn set_result(
             &mut self,
-            a: &mut Self::Control,
+            _: &mut Self::Control,
             size: &io::Result<usize>,
             _: &driver::Extra,
         ) {
-            println!("===2====> {}", a);
-
             match size {
                 Ok(size) => println!("result: {}", size),
                 Err(e) => println!("result error: {}", e),
@@ -79,7 +75,16 @@ mod tests {
             // })
             // .detach();
 
-            let a = runtime::submit(TestOp {}).await;
+            let _ = runtime::submit(TestOp {}).await;
+
+            runtime::spawn(async {
+                runtime::submit(TestOp {}).await;
+            })
+            .detach();
+            runtime::spawn(async {
+                runtime::submit(TestOp {}).await;
+            })
+            .detach();
 
             println!("result => xxxxxxxxxxxxx");
 

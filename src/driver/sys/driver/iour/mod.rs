@@ -14,28 +14,14 @@ mod op;
 pub use op::*;
 use slotmap::{DefaultKey, SlotMap};
 
-cfg_select! {
-    feature = "io-uring-cqe32" => {
-        use io_uring::cqueue::Entry32 as CEntry;
-    }
-    _ => {
-        use io_uring::cqueue::Entry as CEntry;
-    }
-}
-
-cfg_select! {
-    feature = "io-uring-sqe128" => {
-        use io_uring::squeue::Entry128 as SEntry;
-    }
-    _ => {
-        use io_uring::squeue::Entry as SEntry;
-    }
-}
 use crate::driver::{ProactorBuilder, key::ErasedKey, sys::extra::IourExtra};
 use io_uring::{
     EnterFlags, IoUring,
     types::{SubmitArgs, Timespec},
 };
+
+use io_uring::cqueue::Entry as CEntry;
+use io_uring::squeue::Entry as SEntry;
 
 struct DriverFlags(u8);
 
@@ -122,9 +108,6 @@ impl Driver {
     }
 
     pub fn poll(&mut self, timeout: Option<Duration>) -> io::Result<()> {
-        // if self.poll_blocking() {
-        //     return Ok(());
-        // }
         let need_wait = !self.notifier.reset();
 
         if self.flags.contains(DriverFlags::NEED_PUSH_NOTIFIER) {
@@ -149,50 +132,9 @@ impl Driver {
         let op_entry = key.borrow().create_entry();
         match op_entry {
             OpEntry::Submission(entry) => {
-                println!("OpEntry::Submission");
                 self.push_raw_with_key(entry.into(), key)?;
             }
-            #[cfg(feature = "io-uring-sqe128")]
-            OpEntry::Submission128(entry) => {}
-            OpEntry::Blocking => {
-                println!("OpEntry::Blocking");
-            }
         }
-
-        /*
-        let mut op_entry = key.borrow().create_entry::<false>();
-        let mut has_fallbacked = false;
-        loop {
-            match op_entry {
-                OpEntry::Submission(entry) => {
-                    if is_op_supported(entry.get_opcode() as _) {
-                        #[allow(clippy::useless_conversion)]
-                        self.push_raw_with_key(entry.into(), key)?;
-                    } else if !has_fallbacked {
-                        op_entry = key.borrow().create_entry::<true>();
-                        has_fallbacked = true;
-                        continue;
-                    } else {
-                        self.push_blocking(key);
-                    }
-                }
-                #[cfg(feature = "io-uring-sqe128")]
-                OpEntry::Submission128(entry) => {
-                    if is_op_supported(entry.get_opcode() as _) {
-                        self.push_raw_with_key(entry, key)?;
-                    } else if !has_fallbacked {
-                        op_entry = key.borrow().create_entry::<true>();
-                        has_fallbacked = true;
-                        continue;
-                    } else {
-                        self.push_blocking(key);
-                    }
-                }
-                OpEntry::Blocking => self.push_blocking(key),
-            }
-            break;
-        }
-        */
         Poll::Pending
     }
 
@@ -283,8 +225,7 @@ impl Driver {
                     }
                     println!("iouring NOTIFY");
                 }
-                key => {
-                    println!("event data: {}", key);
+                _key => {
                     let flags = entry.flags();
                     if io_uring::cqueue::more(flags) {
                         println!("event flag: more");

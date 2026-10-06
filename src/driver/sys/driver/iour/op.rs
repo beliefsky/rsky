@@ -1,15 +1,11 @@
 use std::io;
 
+use super::SEntry;
 use crate::driver::{Extra, control::Carrier};
 
 pub enum OpEntry {
     /// This operation creates an io-uring submission entry.
-    Submission(io_uring::squeue::Entry),
-    #[cfg(feature = "io-uring-sqe128")]
-    /// This operation creates an 128-bit io-uring submission entry.
-    Submission128(io_uring::squeue::Entry128),
-    /// This operation is a blocking one.
-    Blocking,
+    Submission(SEntry),
 }
 
 impl OpEntry {
@@ -22,28 +18,13 @@ impl OpEntry {
                 // Set the union of two flags - it will not remove previous flags set by the Op
                 entry.flags(extra.get_sqe_flags())
             }),
-            #[cfg(feature = "io-uring-sqe128")]
-            Self::Submission128(mut entry) => Self::Submission128({
-                if let Some(personality) = extra.get_personality() {
-                    entry = entry.personality(personality);
-                }
-                entry.flags(extra.get_sqe_flags())
-            }),
-            Self::Blocking => Self::Blocking,
         }
     }
 }
 
-impl From<io_uring::squeue::Entry> for OpEntry {
-    fn from(value: io_uring::squeue::Entry) -> Self {
+impl From<SEntry> for OpEntry {
+    fn from(value: SEntry) -> Self {
         Self::Submission(value)
-    }
-}
-
-#[cfg(feature = "io-uring-sqe128")]
-impl From<io_uring::squeue::Entry128> for OpEntry {
-    fn from(value: io_uring::squeue::Entry128) -> Self {
-        Self::Submission128(value)
     }
 }
 
