@@ -167,10 +167,6 @@ pub(crate) struct RawOp<M: ?Sized> {
 }
 
 impl<C: ?Sized> RawOp<C> {
-    pub fn extra(&self) -> &Extra {
-        &self.extra
-    }
-
     pub fn extra_mut(&mut self) -> &mut Extra {
         &mut self.extra
     }

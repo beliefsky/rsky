@@ -23,9 +23,6 @@ compio = {version = "^0.19", features = ["net"]}
 
 [features]
 
-io-uring-sqe128 = []
-io-uring-cqe32 = []
-
 [profile.release]
 lto = true
 codegen-units = 1

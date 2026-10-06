@@ -22,20 +22,6 @@ impl<'a> Ext<'a> {
 }
 
 impl<'a> Ext<'a> {
-    pub fn with_personality(&self, personality: u16) -> Self {
-        Self {
-            personality: Some(personality),
-            cancel: self.cancel.clone(),
-        }
-    }
-
-    pub fn with_cancel(&self, token: &'a CancelToken) -> Self {
-        Self {
-            personality: self.personality,
-            cancel: Some(Cow::Borrowed(token)),
-        }
-    }
-
     pub fn get_cancel(&self) -> Option<&CancelToken> {
         self.cancel.as_deref()
     }
