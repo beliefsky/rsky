@@ -1,11 +1,12 @@
 use std::{
     hash::Hash,
-    io,
+    io, mem,
     ops::{Deref, DerefMut},
+    ptr,
     task::Waker,
 };
 
-use thin_cell::unsync::{Inner, Ref, ThinCell};
+use thin_cell::unsync::{Inner, Ref, ThinCell, Weak};
 
 use crate::{
     buf::{BufResult, IntoInner},
@@ -91,6 +92,12 @@ impl ErasedKey {
         Self { inner }
     }
 
+    pub(crate) fn downgrade(&self) -> WeakKey {
+        WeakKey {
+            inner: self.inner.downgrade(),
+        }
+    }
+
     pub(crate) fn as_raw(&self) -> usize {
         self.inner.as_ptr() as _
     }
@@ -104,8 +111,40 @@ impl ErasedKey {
         self.inner.borrow()
     }
 
+    pub(crate) fn set_cancelled(&self) -> bool {
+        let mut op = self.borrow();
+        mem::replace(&mut op.cancelled, true)
+    }
+
+    pub(crate) fn is_unique(&self) -> bool {
+        ThinCell::count(&self.inner) == 1
+    }
+
     pub(crate) fn has_result(&self) -> bool {
         self.borrow().result.is_ready()
+    }
+
+    pub(crate) fn set_result(&self, res: io::Result<usize>) {
+        let mut this = self.borrow();
+        {
+            let RawOp { extra, carrier, .. } = &mut *this;
+            unsafe { Carry::set_result(carrier, &res, extra) };
+        }
+        if let PushEntry::Pending(Some(w)) = mem::replace(&mut this.result, PushEntry::Ready(res)) {
+            w.wake();
+        }
+    }
+
+    unsafe fn take_result<T: OpCode>(self) -> BufResult<usize, T> {
+        // SAFETY: Caller guarantees that `T` is the actual concrete type.
+        let this = unsafe { self.inner.downcast_unchecked::<RawOp<Carrier<T>>>() };
+        let op = this.try_unwrap().map_err(|_| ()).expect("Key not unique");
+        let res = op.result.take_ready().expect("Result not ready");
+        BufResult(res, op.carrier.into_inner())
+    }
+
+    pub(crate) fn swap_extra(&self, extra: Extra) -> Extra {
+        mem::replace(&mut self.borrow().extra, extra)
     }
 
     pub(crate) fn set_waker(&self, waker: &Waker) {
@@ -118,27 +157,6 @@ impl ErasedKey {
         }
 
         *w = Some(waker.clone());
-    }
-
-    pub(crate) fn set_result(&self, res: io::Result<usize>) {
-        let mut this = self.borrow();
-        {
-            let RawOp { extra, carrier, .. } = &mut *this;
-            unsafe { Carry::set_result(carrier, &res, extra) };
-        }
-        if let PushEntry::Pending(Some(w)) =
-            std::mem::replace(&mut this.result, PushEntry::Ready(res))
-        {
-            w.wake();
-        }
-    }
-
-    unsafe fn take_result<T: OpCode>(self) -> BufResult<usize, T> {
-        // SAFETY: Caller guarantees that `T` is the actual concrete type.
-        let this = unsafe { self.inner.downcast_unchecked::<RawOp<Carrier<T>>>() };
-        let op = this.try_unwrap().map_err(|_| ()).expect("Key not unique");
-        let res = op.result.take_ready().expect("Result not ready");
-        BufResult(res, op.carrier.into_inner())
     }
 }
 
@@ -175,5 +193,37 @@ impl<C: ?Sized> RawOp<C> {
 impl<C: Carry + ?Sized> RawOp<C> {
     pub fn create_entry(&mut self) -> OpEntry {
         self.carrier.create_entry().with_extra(&self.extra)
+    }
+}
+
+#[derive(Clone)]
+#[repr(transparent)]
+pub(crate) struct WeakKey {
+    inner: Weak<RawOp<dyn Carry>>,
+}
+
+impl WeakKey {
+    pub(crate) fn upgrade(&self) -> Option<ErasedKey> {
+        Some(ErasedKey {
+            inner: self.inner.upgrade()?,
+        })
+    }
+
+    pub(crate) fn as_ptr(&self) -> *const () {
+        self.inner.as_ptr()
+    }
+}
+
+impl PartialEq for WeakKey {
+    fn eq(&self, other: &Self) -> bool {
+        ptr::eq(self.inner.as_ptr(), other.inner.as_ptr())
+    }
+}
+
+impl Eq for WeakKey {}
+
+impl Hash for WeakKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        (self.inner.as_ptr() as usize).hash(state)
     }
 }

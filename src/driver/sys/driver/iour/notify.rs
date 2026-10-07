@@ -57,8 +57,7 @@ impl Wake for Notify {
     }
 
     fn wake_by_ref(self: &Arc<Self>) {
-        println!("==========> wake_by_ref");
-        if self.awake.wake() {
+        if !self.awake.wake() {
             println!("==========> event write");
             // 写入通知
         }

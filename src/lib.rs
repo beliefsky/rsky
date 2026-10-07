@@ -1,41 +1,28 @@
 // mod arch;
 pub mod buf;
 pub mod driver;
+pub mod os;
 pub mod runtime;
 pub mod thread;
 
 #[cfg(test)]
 mod tests {
-    use crate::driver;
+    use crate::buf;
+    use crate::buf::IntoInner;
+    use crate::driver::op;
+    use crate::os::net::Protocol;
+    use crate::os::net::SockAddr;
+    use crate::os::net::SocketType;
     use crate::runtime;
     use std::io;
+    use std::net::SocketAddr;
+    use std::os::fd::AsRawFd;
 
     use compio::io::AsyncRead;
 
     pub struct TestSync {
         name: &'static str,
         num: i32,
-    }
-
-    pub struct TestOp {}
-
-    unsafe impl driver::OpCode for TestOp {
-        type Control = ();
-
-        fn create_entry(&mut self, _: &mut Self::Control) -> driver::OpEntry {
-            io_uring::opcode::Socket::new(2, 1, 6).build().into()
-        }
-        unsafe fn set_result(
-            &mut self,
-            _: &mut Self::Control,
-            size: &io::Result<usize>,
-            _: &driver::Extra,
-        ) {
-            match size {
-                Ok(size) => println!("result: {}", size),
-                Err(e) => println!("result error: {}", e),
-            }
-        }
     }
 
     impl std::future::Future for TestSync {
@@ -58,6 +45,63 @@ mod tests {
         }
     }
 
+    async fn test_rsky_ser() -> io::Result<()> {
+        let addr = SockAddr::from(SocketAddr::from(([127, 0, 0, 1], 3000)));
+
+        let socket = {
+            let buf::BufResult(res, op) = runtime::submit(op::CreateSocket::new(
+                addr.family(),
+                SocketType::STREAM,
+                Some(Protocol::TCP),
+            ))
+            .await;
+            res?;
+            op.into_inner()
+        };
+        let socket = std::rc::Rc::new(socket);
+
+        {
+            let buf::BufResult(res, _) = runtime::submit(op::Bind::new(socket.clone(), addr)).await;
+            res?;
+        }
+        {
+            let buf::BufResult(res, _) =
+                runtime::submit(op::Listen::new(socket.clone(), 128)).await;
+            res?;
+        }
+
+        loop {
+            let client = {
+                let buf::BufResult(res, op) =
+                    runtime::submit(op::Accept::new(socket.clone())).await;
+                res?;
+                let (client, _) = op.into_inner();
+                std::rc::Rc::new(client)
+            };
+
+            runtime::spawn(async {
+                if let Err(e) = test_rsky_conn(client).await {
+                    println!("conn error: {}", e);
+                }
+                {
+                    // let fd = client.take();
+                    // drop(client);
+                    // let fd = fd.unwrap();
+                    // let buf::BufResult(res, _) = runtime::submit(op::CloseSocket::new(fd)).await;
+                    // res?;
+                }
+            })
+            .detach();
+        }
+
+        Ok(())
+    }
+
+    async fn test_rsky_conn(conn: std::rc::Rc<std::os::fd::OwnedFd>) -> io::Result<()> {
+        println!("---------> {}", conn.as_raw_fd());
+        Ok(())
+    }
+
     #[test]
     fn test_rsky() -> io::Result<()> {
         let runtime = runtime::Runtime::new()?;
@@ -65,6 +109,10 @@ mod tests {
 
         runtime.block_on(async {
             println!("main");
+
+            if let Err(e) = test_rsky_ser().await {
+                println!("io error: {}", e);
+            }
 
             // runtime::spawn(async {
             //     TestSync { name: "t2", num: 0 }.await;
@@ -75,20 +123,9 @@ mod tests {
             // })
             // .detach();
 
-            let _ = runtime::submit(TestOp {}).await;
-
-            runtime::spawn(async {
-                runtime::submit(TestOp {}).await;
-            })
-            .detach();
-            runtime::spawn(async {
-                runtime::submit(TestOp {}).await;
-            })
-            .detach();
-
             println!("result => xxxxxxxxxxxxx");
 
-            TestSync { name: "t1", num: 0 }.await;
+            // TestSync { name: "t1", num: 0 }.await;
         });
         println!("exit");
         Ok(())

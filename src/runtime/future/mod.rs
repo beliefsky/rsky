@@ -22,6 +22,17 @@ fn poll_task<T: OpCode>(
     })
 }
 
+fn poll_task_with_extra<T: OpCode>(
+    driver: &mut Proactor,
+    waker: &Waker,
+    key: Key<T>,
+) -> PushEntry<Key<T>, (BufResult<usize, T>, Extra)> {
+    driver.pop_with_extra(key).map_pending(|k| {
+        driver.update_waker(&k, waker);
+        k
+    })
+}
+
 fn submit_raw<T: OpCode + 'static>(
     driver: &mut Proactor,
     op: T,

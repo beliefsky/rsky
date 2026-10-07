@@ -57,8 +57,7 @@ pin_project_lite::pin_project! {
         fn drop(this: Pin<&mut Self>) {
             let this = this.project();
             if let Some(State::Submitted { key, .. }) = this.state.take() {
-                println!("Submit  drop 未完成");
-                // this.driver.borrow_mut().cancel(key);
+                this.driver.borrow_mut().cancel(key);
             }
         }
     }
@@ -85,26 +84,26 @@ impl<T: OpCode> Submit<T, ()> {
             state: Some(State::Idle { op }),
         }
     }
-    // pub fn with_extra(mut self) -> Submit<T, Extra> {
-    //     let driver = self.driver.clone();
-    //     let Some(state) = self.state.take() else {
-    //         return Submit {
-    //             driver,
-    //             state: None,
-    //         };
-    //     };
-    //     let state = match state {
-    //         State::Submitted { key, .. } => State::Submitted {
-    //             key,
-    //             _p: PhantomData,
-    //         },
-    //         State::Idle { op } => State::Idle { op },
-    //     };
-    //     Submit {
-    //         driver,
-    //         state: Some(state),
-    //     }
-    // }
+    pub fn with_extra(mut self) -> Submit<T, Extra> {
+        let driver = self.driver.clone();
+        let Some(state) = self.state.take() else {
+            return Submit {
+                driver,
+                state: None,
+            };
+        };
+        let state = match state {
+            State::Submitted { key, .. } => State::Submitted {
+                key,
+                _p: PhantomData,
+            },
+            State::Idle { op } => State::Idle { op },
+        };
+        Submit {
+            driver,
+            state: Some(state),
+        }
+    }
 }
 
 impl<T: OpCode + 'static> Future for Submit<T, ()> {
@@ -141,6 +140,50 @@ impl<T: OpCode + 'static> Future for Submit<T, ()> {
                         }
                         PushEntry::Ready(res) => {
                             return Poll::Ready(res);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl<T: OpCode + 'static> Future for Submit<T, Extra> {
+    type Output = (BufResult<usize, T>, Extra);
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+
+        loop {
+            match this.state.take().expect("Cannot poll after ready") {
+                State::Submitted { key, .. } => {
+                    let entry = super::poll_task_with_extra(
+                        &mut this.driver.borrow_mut(),
+                        cx.get_waker(),
+                        key,
+                    );
+                    match entry {
+                        PushEntry::Pending(key) => {
+                            *this.state = Some(State::submitted(key));
+                            return Poll::Pending;
+                        }
+                        PushEntry::Ready(res) => return Poll::Ready(res),
+                    }
+                }
+                State::Idle { op } => {
+                    let extra = cx.as_extra(|| this.driver.borrow().default_extra());
+                    let entry = super::submit_raw(&mut this.driver.borrow_mut(), op, extra);
+                    match entry {
+                        PushEntry::Pending(key) => {
+                            if let Some(cancel) = cx.get_cancel() {
+                                println!("==========> Submit push concel ========");
+                                cancel.register(&key);
+                            }
+
+                            *this.state = Some(State::submitted(key))
+                        }
+                        PushEntry::Ready(res) => {
+                            return Poll::Ready((res, this.driver.borrow().default_extra()));
                         }
                     }
                 }

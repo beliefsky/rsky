@@ -13,6 +13,9 @@ pub use key::Key;
 mod sys;
 pub use sys::*;
 
+mod cancel;
+pub use cancel::*;
+
 use crate::buf::BufResult;
 
 pub enum PushEntry<K, R> {
@@ -107,6 +110,47 @@ impl Proactor {
         } else {
             PushEntry::Pending(key)
         }
+    }
+
+    pub fn pop_with_extra<T: OpCode>(
+        &mut self,
+        key: Key<T>,
+    ) -> PushEntry<Key<T>, (BufResult<usize, T>, Extra)> {
+        if key.has_result() {
+            let extra = key.swap_extra(self.default_extra());
+            let (res, buf) = key.take_result().into_parts();
+            PushEntry::Ready((BufResult(panic::resume_unwind_io(res), buf), extra))
+        } else {
+            PushEntry::Pending(key)
+        }
+    }
+
+    pub fn cancel<T: OpCode>(&mut self, key: Key<T>) -> Option<BufResult<usize, T>> {
+        if key.set_cancelled() {
+            return None;
+        }
+        if key.is_unique() && key.has_result() {
+            let (res, buf) = key.take_result().into_parts();
+            Some(BufResult(panic::resume_unwind_io(res), buf))
+        } else {
+            self.driver.cancel(key.erase());
+            None
+        }
+    }
+
+    pub fn cancel_token(&mut self, token: Cancel) -> bool {
+        let Some(key) = token.upgrade() else {
+            return false;
+        };
+        if key.set_cancelled() || key.has_result() {
+            return false;
+        }
+        self.driver.cancel(key);
+        true
+    }
+
+    pub fn register_cancel<T: OpCode>(&mut self, key: &Key<T>) -> Cancel {
+        Cancel::new(key)
     }
 
     pub fn update_waker<T>(&mut self, op: &Key<T>, waker: &Waker) {

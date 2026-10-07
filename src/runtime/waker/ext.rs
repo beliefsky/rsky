@@ -1,9 +1,8 @@
 use std::{
     mem::ManuallyDrop,
-    pin::Pin,
     ptr,
     sync::Arc,
-    task::{Context, Poll, RawWaker, RawWakerVTable, Waker},
+    task::{RawWaker, RawWakerVTable, Waker},
 };
 
 use crate::{runtime::Ext, thread::SendWrapper};
@@ -32,29 +31,6 @@ pub(crate) struct ExtWaker<'a, 'b> {
 }
 
 impl<'a, 'b> ExtWaker<'a, 'b> {
-    pub fn new(waker: &'a Waker, ext: &'a Ext<'b>) -> Self {
-        Self {
-            waker,
-            ext: SendWrapper::new(ext),
-        }
-    }
-
-    pub fn poll<F: Future + ?Sized>(&self, fut: Pin<&mut F>) -> Poll<F::Output> {
-        self.with(|waker| fut.poll(&mut Context::from_waker(waker)))
-    }
-
-    // pub fn poll_next<F: Stream + ?Sized>(&self, fut: Pin<&mut F>) -> Poll<Option<F::Item>> {
-    //     self.with(|waker| fut.poll_next(&mut Context::from_waker(waker)))
-    // }
-
-    fn with<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&Waker) -> R,
-    {
-        let waker = unsafe { Waker::new(self as *const _ as *const (), &EXT_WAKER_VTABLE) };
-        f(&waker)
-    }
-
     unsafe fn from_raw<'s>(ptr: *const ()) -> &'s Self {
         unsafe { &*ptr.cast::<Self>() }
     }

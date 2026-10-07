@@ -8,7 +8,7 @@ edition = "2024"
 [dependencies]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-io-uring = { version = "^0.7" }
+io-uring = { version = "^0.7", features = ["direct-syscall"] }
 rustix = "^1.1"
 pin-project-lite = "^0.2"
 thin-cell = "^0.2"
@@ -20,8 +20,6 @@ crossbeam-queue = "^0.3"
 [dev-dependencies]
 compio = {version = "^0.19", features = ["net"]}
 
-
-[features]
 
 [profile.release]
 lto = true

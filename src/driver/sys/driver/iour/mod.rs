@@ -17,6 +17,7 @@ use slotmap::{DefaultKey, SlotMap};
 use crate::driver::{ProactorBuilder, key::ErasedKey, sys::extra::IourExtra};
 use io_uring::{
     EnterFlags, IoUring,
+    opcode::AsyncCancel,
     types::{SubmitArgs, Timespec},
 };
 
@@ -136,6 +137,24 @@ impl Driver {
             }
         }
         Poll::Pending
+    }
+
+    pub fn cancel(&mut self, key: ErasedKey) {
+        unsafe {
+            if self
+                .inner
+                .submission()
+                .push(
+                    &AsyncCancel::new(key.as_raw() as _)
+                        .build()
+                        .user_data(Self::IOUR_CANCEL)
+                        .into(),
+                )
+                .is_err()
+            {
+                println!("could not push AsyncCancel entry");
+            }
+        }
     }
 
     pub fn waker(&self) -> Waker {
