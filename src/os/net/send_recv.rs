@@ -25,3 +25,15 @@ impl SendFlags {
         self.0
     }
 }
+
+pub struct Shutdown(i32);
+
+impl Shutdown {
+    pub const READ: Self = Self(0);
+    pub const WRITE: Self = Self(1);
+    pub const BOTH: Self = Self(2);
+
+    pub fn how(&self) -> i32 {
+        self.0
+    }
+}

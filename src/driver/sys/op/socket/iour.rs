@@ -5,7 +5,7 @@ use std::{
 
 use io_uring::{opcode, types};
 
-use super::{Accept, Bind, CloseSocket, Connect, CreateSocket, Listen, Recv, Send};
+use super::{Accept, Bind, CloseSocket, Connect, CreateSocket, Listen, Recv, Send, ShutdownSocket};
 use crate::{
     buf::{IoBuf, IoBufMut},
     driver::{Extra, OpCode, OpEntry},
@@ -88,6 +88,16 @@ unsafe impl<S: AsFd> OpCode for Connect<S> {
         )
         .build()
         .into()
+    }
+}
+
+unsafe impl<S: AsFd> OpCode for ShutdownSocket<S> {
+    type Control = ();
+
+    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+        opcode::Shutdown::new(types::Fd(self.fd.as_fd().as_raw_fd()), self.how.how())
+            .build()
+            .into()
     }
 }
 

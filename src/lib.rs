@@ -12,6 +12,8 @@ mod tests {
     use crate::driver::op;
     use crate::os::net::Protocol;
     use crate::os::net::RecvFlags;
+    use crate::os::net::SendFlags;
+    use crate::os::net::Shutdown;
     use crate::os::net::SockAddr;
     use crate::os::net::SocketType;
     use crate::runtime;
@@ -114,6 +116,12 @@ mod tests {
         }
     }
 
+    impl buf::IoBuf for String {
+        fn as_init(&self) -> &[u8] {
+            self.as_bytes()
+        }
+    }
+
     async fn test_rsky_conn(conn: std::rc::Rc<std::os::fd::OwnedFd>) -> io::Result<()> {
         println!("-----fd----> {}", conn.as_raw_fd());
 
@@ -130,12 +138,31 @@ mod tests {
                     break;
                 }
                 let buf = op.into_inner();
-                let received = String::from_utf8_lossy(&buf[..n]);
-                println!("收到数据: {}", received);
+                // let received = String::from_utf8_lossy(&buf[..n]);
+                println!("收到数据字节数: {}", n);
 
                 read_buf = buf;
             }
+
+            let content = "hello world!";
+
+            let a = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: keep-alive\r\n\r\n{}",
+                content.len(),
+                content
+            );
+            let (res, _) = runtime::submit(op::Send::new(conn.clone(), a, SendFlags::EMPTY))
+                .await
+                .into();
+            let n = res?;
+            println!("发送数据字节数：{}", n);
         }
+
+        let (res, _) = runtime::submit(op::ShutdownSocket::new(conn.clone(), Shutdown::BOTH))
+            .await
+            .into();
+        res?;
+
         Ok(())
     }
 
