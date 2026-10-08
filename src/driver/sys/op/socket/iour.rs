@@ -3,10 +3,11 @@ use std::{
     os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd},
 };
 
-use io_uring::opcode;
+use io_uring::{opcode, types};
 
-use super::{Accept, Bind, CloseSocket, Connect, CreateSocket, Listen};
+use super::{Accept, Bind, CloseSocket, Connect, CreateSocket, Listen, Recv, Send};
 use crate::{
+    buf::{IoBuf, IoBufMut},
     driver::{Extra, OpCode, OpEntry},
     os::net,
 };
@@ -37,7 +38,7 @@ unsafe impl<S: AsFd> OpCode for Bind<S> {
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
         opcode::Bind::new(
-            io_uring::types::Fd(self.fd.as_fd().as_raw_fd()),
+            types::Fd(self.fd.as_fd().as_raw_fd()),
             self.addr.addr_as_ptr(),
             self.addr.len(),
         )
@@ -50,12 +51,9 @@ unsafe impl<S: AsFd> OpCode for Listen<S> {
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
-        opcode::Listen::new(
-            io_uring::types::Fd(self.fd.as_fd().as_raw_fd()),
-            self.backlog,
-        )
-        .build()
-        .into()
+        opcode::Listen::new(types::Fd(self.fd.as_fd().as_raw_fd()), self.backlog)
+            .build()
+            .into()
     }
 }
 
@@ -65,13 +63,9 @@ unsafe impl<S: AsFd> OpCode for Accept<S> {
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
         let (addr_ptr, len_ptr) = self.addr.buffer_ptr_mut();
 
-        let entry = opcode::Accept::new(
-            io_uring::types::Fd(self.fd.as_fd().as_raw_fd()),
-            addr_ptr,
-            len_ptr,
-        )
-        .flags(net::SOCK_CLOEXEC)
-        .build();
+        let entry = opcode::Accept::new(types::Fd(self.fd.as_fd().as_raw_fd()), addr_ptr, len_ptr)
+            .flags(net::SOCK_CLOEXEC)
+            .build();
         entry.into()
     }
 
@@ -88,7 +82,7 @@ unsafe impl<S: AsFd> OpCode for Connect<S> {
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
         opcode::Connect::new(
-            io_uring::types::Fd(self.fd.as_fd().as_raw_fd()),
+            types::Fd(self.fd.as_fd().as_raw_fd()),
             self.addr.addr_as_ptr(),
             self.addr.len(),
         )
@@ -101,8 +95,41 @@ unsafe impl OpCode for CloseSocket {
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
-        opcode::Close::new(io_uring::types::Fd(self.fd.as_fd().as_raw_fd()))
+        opcode::Close::new(types::Fd(self.fd.as_fd().as_raw_fd()))
             .build()
             .into()
+    }
+}
+
+unsafe impl<T: IoBufMut, S: AsFd> OpCode for Recv<T, S> {
+    type Control = ();
+
+    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+        let slice = self.buffer.as_uninit();
+
+        opcode::Recv::new(
+            types::Fd(self.fd.as_fd().as_raw_fd()),
+            slice.as_mut_ptr() as _,
+            slice.len().try_into().unwrap_or(u32::MAX),
+        )
+        .flags(self.flags.flags() as _)
+        .build()
+        .into()
+    }
+}
+
+unsafe impl<T: IoBuf, S: AsFd> OpCode for Send<T, S> {
+    type Control = ();
+
+    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+        let slice = self.buffer.as_init();
+        opcode::Send::new(
+            types::Fd(self.fd.as_fd().as_raw_fd()),
+            slice.as_ptr(),
+            slice.len().try_into().unwrap_or(u32::MAX),
+        )
+        .flags(self.flags.flags() as _)
+        .build()
+        .into()
     }
 }

@@ -1,8 +1,8 @@
 use std::{mem::ManuallyDrop, os::fd::OwnedFd};
 
 use crate::{
-    buf::IntoInner,
-    os::net::{AddressFamily, Protocol, SockAddr, SocketType},
+    buf::{IntoInner, IoBuf, IoBufMut},
+    os::net::{AddressFamily, Protocol, RecvFlags, SendFlags, SockAddr, SocketType},
 };
 
 mod iour;
@@ -62,7 +62,6 @@ pub struct Accept<S> {
 }
 
 impl<S> Accept<S> {
-    /// Create [`Accept`].
     pub fn new(fd: S) -> Self {
         Self {
             fd,
@@ -101,5 +100,45 @@ impl CloseSocket {
         Self {
             fd: ManuallyDrop::new(fd),
         }
+    }
+}
+
+pub struct Recv<T: IoBufMut, S> {
+    pub(crate) fd: S,
+    pub(crate) buffer: T,
+    pub(crate) flags: RecvFlags,
+}
+
+impl<T: IoBufMut, S> Recv<T, S> {
+    pub fn new(fd: S, buffer: T, flags: RecvFlags) -> Self {
+        Self { fd, buffer, flags }
+    }
+}
+
+impl<T: IoBufMut, S> IntoInner for Recv<T, S> {
+    type Inner = T;
+
+    fn into_inner(self) -> Self::Inner {
+        self.buffer
+    }
+}
+
+pub struct Send<T: IoBuf, S> {
+    pub(crate) fd: S,
+    pub(crate) buffer: T,
+    pub(crate) flags: SendFlags,
+}
+
+impl<T: IoBuf, S> Send<T, S> {
+    pub fn new(fd: S, buffer: T, flags: SendFlags) -> Self {
+        Self { fd, buffer, flags }
+    }
+}
+
+impl<T: IoBuf, S> IntoInner for Send<T, S> {
+    type Inner = T;
+
+    fn into_inner(self) -> Self::Inner {
+        self.buffer
     }
 }

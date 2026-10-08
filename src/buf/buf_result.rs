@@ -1,5 +1,7 @@
 use std::io;
 
+use super::IntoInner;
+
 pub struct BufResult<T, B>(pub io::Result<T>, pub B);
 
 impl<T, B> BufResult<T, B> {
@@ -83,7 +85,6 @@ impl<T, B> BufResult<T, B> {
     }
 }
 
-
 impl<T, B> From<(io::Result<T>, B)> for BufResult<T, B> {
     fn from((res, buf): (io::Result<T>, B)) -> Self {
         Self(res, buf)
@@ -93,5 +94,13 @@ impl<T, B> From<(io::Result<T>, B)> for BufResult<T, B> {
 impl<T, B> From<BufResult<T, B>> for (io::Result<T>, B) {
     fn from(BufResult(res, buf): BufResult<T, B>) -> Self {
         (res, buf)
+    }
+}
+
+impl<T: IntoInner, O> IntoInner for BufResult<O, T> {
+    type Inner = BufResult<O, T::Inner>;
+
+    fn into_inner(self) -> Self::Inner {
+        BufResult(self.0, self.1.into_inner())
     }
 }

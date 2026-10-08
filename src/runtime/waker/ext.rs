@@ -23,14 +23,14 @@ static OWNED_EXT_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
 );
 
 #[derive(Clone)]
-pub(crate) struct ExtWaker<'a, 'b> {
+pub(crate) struct ExtWaker<'a> {
     waker: &'a Waker,
     // `SendWrapper<&Ext>` will not panic when being dropped on other thread since references
     // doesn't need drop
-    ext: SendWrapper<&'a Ext<'b>>,
+    ext: SendWrapper<&'a Ext>,
 }
 
-impl<'a, 'b> ExtWaker<'a, 'b> {
+impl<'a> ExtWaker<'a> {
     unsafe fn from_raw<'s>(ptr: *const ()) -> &'s Self {
         unsafe { &*ptr.cast::<Self>() }
     }
@@ -74,7 +74,7 @@ struct OwnedExtWaker(Arc<Inner>);
 
 struct Inner {
     waker: Waker,
-    ext: ManuallyDrop<SendWrapper<Ext<'static>>>,
+    ext: ManuallyDrop<SendWrapper<Ext>>,
 }
 
 impl Drop for Inner {
@@ -129,7 +129,7 @@ pub(crate) fn get_waker(waker: &Waker) -> &Waker {
     }
 }
 
-pub(crate) fn get_ext(waker: &Waker) -> Option<&Ext<'_>> {
+pub(crate) fn get_ext(waker: &Waker) -> Option<&Ext> {
     if ptr::eq(waker.vtable(), &EXT_WAKER_VTABLE) {
         unsafe { ExtWaker::from_raw(waker.data()) }
             .ext

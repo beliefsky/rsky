@@ -13,9 +13,6 @@ use crate::{
     thread::{Executor, ExecutorConfig, JoinHandle, SpawnMeta, console},
 };
 
-mod cancel;
-pub use cancel::CancelToken;
-
 mod future;
 pub use future::*;
 

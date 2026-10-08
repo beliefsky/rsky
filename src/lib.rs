@@ -11,10 +11,12 @@ mod tests {
     use crate::buf::IntoInner;
     use crate::driver::op;
     use crate::os::net::Protocol;
+    use crate::os::net::RecvFlags;
     use crate::os::net::SockAddr;
     use crate::os::net::SocketType;
     use crate::runtime;
     use std::io;
+    use std::mem::MaybeUninit;
     use std::net::SocketAddr;
     use std::os::fd::AsRawFd;
 
@@ -49,31 +51,36 @@ mod tests {
         let addr = SockAddr::from(SocketAddr::from(([127, 0, 0, 1], 3000)));
 
         let socket = {
-            let buf::BufResult(res, op) = runtime::submit(op::CreateSocket::new(
+            let (res, op) = runtime::submit(op::CreateSocket::new(
                 addr.family(),
                 SocketType::STREAM,
                 Some(Protocol::TCP),
             ))
-            .await;
+            .await
+            .into();
             res?;
             op.into_inner()
         };
         let socket = std::rc::Rc::new(socket);
 
         {
-            let buf::BufResult(res, _) = runtime::submit(op::Bind::new(socket.clone(), addr)).await;
+            let (res, _) = runtime::submit(op::Bind::new(socket.clone(), addr))
+                .await
+                .into();
             res?;
         }
         {
-            let buf::BufResult(res, _) =
-                runtime::submit(op::Listen::new(socket.clone(), 128)).await;
+            let (res, _) = runtime::submit(op::Listen::new(socket.clone(), 128))
+                .await
+                .into();
             res?;
         }
 
         loop {
             let client = {
-                let buf::BufResult(res, op) =
-                    runtime::submit(op::Accept::new(socket.clone())).await;
+                let (res, op) = runtime::submit(op::Accept::new(socket.clone()))
+                    .await
+                    .into();
                 res?;
                 let (client, _) = op.into_inner();
                 std::rc::Rc::new(client)
@@ -83,22 +90,52 @@ mod tests {
                 if let Err(e) = test_rsky_conn(client).await {
                     println!("conn error: {}", e);
                 }
-                {
-                    // let fd = client.take();
-                    // drop(client);
-                    // let fd = fd.unwrap();
-                    // let buf::BufResult(res, _) = runtime::submit(op::CloseSocket::new(fd)).await;
-                    // res?;
-                }
+
+                // let fd = client.take();
+                // drop(client);
+                // let fd = fd.unwrap();
+                // let buf::BufResult(res, _) = runtime::submit(op::CloseSocket::new(fd)).await;
+                // res?;
             })
             .detach();
         }
+    }
 
-        Ok(())
+    impl buf::IoBuf for Vec<u8> {
+        fn as_init(&self) -> &[u8] {
+            self.as_slice()
+        }
+    }
+    impl buf::IoBufMut for Vec<u8> {
+        fn as_uninit(&mut self) -> &mut [MaybeUninit<u8>] {
+            let ptr = self.as_mut_ptr() as *mut MaybeUninit<u8>;
+            let cap = self.capacity();
+            unsafe { std::slice::from_raw_parts_mut(ptr, cap) }
+        }
     }
 
     async fn test_rsky_conn(conn: std::rc::Rc<std::os::fd::OwnedFd>) -> io::Result<()> {
-        println!("---------> {}", conn.as_raw_fd());
+        println!("-----fd----> {}", conn.as_raw_fd());
+
+        let mut read_buf: Vec<u8> = vec![0; 1024];
+        loop {
+            {
+                let (res, op) =
+                    runtime::submit(op::Recv::new(conn.clone(), read_buf, RecvFlags::EMPTY))
+                        .await
+                        .into();
+                let n = res?;
+                if n == 0 {
+                    println!("------EOF------> {}", conn.as_raw_fd());
+                    break;
+                }
+                let buf = op.into_inner();
+                let received = String::from_utf8_lossy(&buf[..n]);
+                println!("收到数据: {}", received);
+
+                read_buf = buf;
+            }
+        }
         Ok(())
     }
 

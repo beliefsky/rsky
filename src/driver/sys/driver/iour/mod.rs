@@ -27,29 +27,25 @@ use io_uring::squeue::Entry as SEntry;
 struct DriverFlags(u8);
 
 impl DriverFlags {
-    const NEED_PUSH_NOTIFIER: u8 = 1 << 0;
-    const NO_IOWAIT: u8 = 1 << 1;
+    const NEED_PUSH_NOTIFIER: Self = Self(1 << 0);
+    const NO_IOWAIT: Self = Self(1 << 1);
 
-    fn new(value: u8) -> Self {
-        DriverFlags(value)
-    }
-
-    fn set(&mut self, other: u8, value: bool) {
+    fn set(&mut self, other: Self, value: bool) {
         if value {
             self.insert(other);
         } else {
             self.remove(other);
         }
     }
-    fn insert(&mut self, other: u8) {
-        self.0 |= other;
+    fn insert(&mut self, other: Self) {
+        self.0 |= other.0;
     }
-    fn remove(&mut self, other: u8) {
-        self.0 &= !other;
+    fn remove(&mut self, other: Self) {
+        self.0 &= !other.0;
     }
 
-    fn contains(&self, other: u8) -> bool {
-        (self.0 & other) != 0
+    fn contains(&self, other: Self) -> bool {
+        (self.0 & other.0) != 0
     }
 }
 
@@ -93,7 +89,7 @@ impl Driver {
 
         let inner = iour_builder.build(builder.capacity)?;
 
-        let mut flags = DriverFlags::new(DriverFlags::NEED_PUSH_NOTIFIER);
+        let mut flags = DriverFlags::NEED_PUSH_NOTIFIER;
         flags.set(
             DriverFlags::NO_IOWAIT,
             builder.sqpoll_idle.is_none() && inner.params().is_feature_no_iowait(),

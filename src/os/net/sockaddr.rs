@@ -96,12 +96,6 @@ impl<T: Copy> Default for Padding<T> {
     }
 }
 
-impl<T: Copy> Padding<T> {
-    pub(crate) const fn new(val: T) -> Self {
-        Self(MaybeUninit::new(val))
-    }
-}
-
 #[cfg(target_os = "linux")]
 mod sys {
     use super::Padding;

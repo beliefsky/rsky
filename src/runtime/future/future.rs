@@ -9,13 +9,11 @@ use std::{
 use crate::{
     buf::BufResult,
     driver::{Extra, Key, OpCode, Proactor, PushEntry},
-    runtime::{CancelToken, waker},
+    runtime::waker,
 };
 
 pub(crate) trait ContextExt {
     fn get_waker(&self) -> &Waker;
-
-    fn get_cancel(&mut self) -> Option<&CancelToken>;
 
     fn as_extra(&mut self, default: impl FnOnce() -> Extra) -> Option<Extra>;
 }
@@ -23,10 +21,6 @@ pub(crate) trait ContextExt {
 impl ContextExt for Context<'_> {
     fn get_waker(&self) -> &Waker {
         waker::get_waker(self.waker())
-    }
-
-    fn get_cancel(&mut self) -> Option<&CancelToken> {
-        waker::get_ext(self.waker())?.get_cancel()
     }
 
     fn as_extra(&mut self, default: impl FnOnce() -> Extra) -> Option<Extra> {
@@ -130,14 +124,7 @@ impl<T: OpCode + 'static> Future for Submit<T, ()> {
                     let extra = cx.as_extra(|| this.driver.borrow().default_extra());
                     let entry = super::submit_raw(&mut this.driver.borrow_mut(), op, extra);
                     match entry {
-                        PushEntry::Pending(key) => {
-                            if let Some(cancel) = cx.get_cancel() {
-                                println!("==========> Submit push concel ========");
-                                cancel.register(&key);
-                            };
-
-                            *this.state = Some(State::submitted(key))
-                        }
+                        PushEntry::Pending(key) => *this.state = Some(State::submitted(key)),
                         PushEntry::Ready(res) => {
                             return Poll::Ready(res);
                         }
@@ -174,14 +161,7 @@ impl<T: OpCode + 'static> Future for Submit<T, Extra> {
                     let extra = cx.as_extra(|| this.driver.borrow().default_extra());
                     let entry = super::submit_raw(&mut this.driver.borrow_mut(), op, extra);
                     match entry {
-                        PushEntry::Pending(key) => {
-                            if let Some(cancel) = cx.get_cancel() {
-                                println!("==========> Submit push concel ========");
-                                cancel.register(&key);
-                            }
-
-                            *this.state = Some(State::submitted(key))
-                        }
+                        PushEntry::Pending(key) => *this.state = Some(State::submitted(key)),
                         PushEntry::Ready(res) => {
                             return Poll::Ready((res, this.driver.borrow().default_extra()));
                         }
