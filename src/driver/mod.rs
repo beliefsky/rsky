@@ -1,11 +1,15 @@
 use std::{
     io,
+    os::fd::RawFd,
     task::{Poll, Waker},
     time::Duration,
 };
 
 mod control;
 mod panic;
+
+mod fd;
+pub use fd::*;
 
 mod key;
 pub use key::Key;
@@ -16,7 +20,7 @@ pub use sys::*;
 mod cancel;
 pub use cancel::*;
 
-use crate::buf::BufResult;
+use crate::io::BufResult;
 
 pub enum PushEntry<K, R> {
     Pending(K),
@@ -76,6 +80,9 @@ impl Proactor {
     pub fn default_extra(&self) -> Extra {
         Extra::new(&self.driver)
     }
+    pub fn attach(&mut self, fd: RawFd) -> io::Result<()> {
+        self.driver.attach(fd)
+    }
 
     pub fn push<T: sys::OpCode + 'static>(
         &mut self,
@@ -106,7 +113,7 @@ impl Proactor {
     pub fn pop<T: OpCode>(&mut self, key: Key<T>) -> PushEntry<Key<T>, BufResult<usize, T>> {
         if key.has_result() {
             let (res, buf) = key.take_result().into_parts();
-            PushEntry::Ready(BufResult(panic::resume_unwind_io(res), buf))
+            PushEntry::Ready(BufResult::new(panic::resume_unwind_io(res), buf))
         } else {
             PushEntry::Pending(key)
         }
@@ -119,7 +126,7 @@ impl Proactor {
         if key.has_result() {
             let extra = key.swap_extra(self.default_extra());
             let (res, buf) = key.take_result().into_parts();
-            PushEntry::Ready((BufResult(panic::resume_unwind_io(res), buf), extra))
+            PushEntry::Ready((BufResult::new(panic::resume_unwind_io(res), buf), extra))
         } else {
             PushEntry::Pending(key)
         }
@@ -131,7 +138,7 @@ impl Proactor {
         }
         if key.is_unique() && key.has_result() {
             let (res, buf) = key.take_result().into_parts();
-            Some(BufResult(panic::resume_unwind_io(res), buf))
+            Some(BufResult::new(panic::resume_unwind_io(res), buf))
         } else {
             self.driver.cancel(key.erase());
             None

@@ -1,13 +1,11 @@
-mod io_buf;
-pub use io_buf::*;
-
 mod buf_result;
+mod io_buf;
+
 pub use buf_result::BufResult;
+pub use io_buf::{IoBuf, IoBufMut};
 
 pub trait IntoInner {
-    /// The inner type.
     type Inner;
 
-    /// Get the inner buffer.
     fn into_inner(self) -> Self::Inner;
 }

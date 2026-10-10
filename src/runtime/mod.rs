@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     io,
+    os::fd::RawFd,
     panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
     rc::Rc,
     task::{Context, Poll, Waker},
@@ -17,6 +18,9 @@ mod future;
 pub use future::*;
 
 mod waker;
+
+mod attacher;
+pub(crate) use attacher::*;
 
 scoped_thread_local!(static CURRENT_RUNTIME: Runtime);
 
@@ -42,18 +46,6 @@ impl Runtime {
         }
     }
 
-    pub fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
-        CURRENT_RUNTIME.set(self, f)
-    }
-
-    pub fn run(&self) -> bool {
-        self.executor.tick()
-    }
-
-    pub fn waker(&self) -> Waker {
-        self.driver.borrow().waker()
-    }
-
     #[track_caller]
     pub fn block_on<F: Future>(&self, future: F) -> F::Output {
         self.block_on_at(future, SpawnMeta::capture())
@@ -68,7 +60,6 @@ impl Runtime {
                 let mut context = Context::from_waker(&waker);
                 let mut future = std::pin::pin!(future);
                 loop {
-                    println!("loop, current task: {}", self.num_alive_tasks());
                     if let Poll::Ready(result) = future.as_mut().poll(&mut context) {
                         self.run();
                         return result;
@@ -92,6 +83,13 @@ impl Runtime {
         }
     }
 
+    pub fn num_alive_tasks(&self) -> usize {
+        self.executor.num_alive_tasks()
+    }
+    pub fn submit<T: OpCode + 'static>(&self, op: T) -> Submit<T> {
+        Submit::new(self.driver.clone(), op)
+    }
+
     #[track_caller]
     pub fn spawn<F: Future + 'static>(&self, future: F) -> JoinHandle<F::Output> {
         self.spawn_at(future, SpawnMeta::capture())
@@ -105,25 +103,33 @@ impl Runtime {
         self.executor.spawn_at(future, meta)
     }
 
-    pub fn num_alive_tasks(&self) -> usize {
-        self.executor.num_alive_tasks()
+    pub(crate) fn attach(&self, fd: RawFd) -> io::Result<()> {
+        self.driver.borrow_mut().attach(fd)
     }
 
-    pub fn submit<T: OpCode + 'static>(&self, op: T) -> Submit<T> {
-        Submit::new(self.driver.clone(), op)
+    fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
+        CURRENT_RUNTIME.set(self, f)
     }
 
-    pub fn current_timeout(&self) -> Option<Duration> {
+    fn run(&self) -> bool {
+        self.executor.tick()
+    }
+
+    fn waker(&self) -> Waker {
+        self.driver.borrow().waker()
+    }
+
+    fn current_timeout(&self) -> Option<Duration> {
         let timeout = None;
         timeout
     }
 
-    pub fn poll(&self) {
+    fn poll(&self) {
         let timeout = self.current_timeout();
         self.poll_with(timeout)
     }
 
-    pub fn poll_with(&self, timeout: Option<Duration>) {
+    fn poll_with(&self, timeout: Option<Duration>) {
         let mut driver = self.driver.borrow_mut();
         match driver.poll(timeout) {
             Ok(()) => {}

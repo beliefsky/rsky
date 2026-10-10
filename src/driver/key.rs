@@ -9,8 +9,8 @@ use std::{
 use thin_cell::unsync::{Inner, Ref, ThinCell, Weak};
 
 use crate::{
-    buf::{BufResult, IntoInner},
     driver::{Carry, Extra, OpCode, OpEntry, PushEntry, control::Carrier},
+    io::{BufResult, IntoInner},
 };
 
 #[repr(transparent)]
@@ -140,7 +140,7 @@ impl ErasedKey {
         let this = unsafe { self.inner.downcast_unchecked::<RawOp<Carrier<T>>>() };
         let op = this.try_unwrap().map_err(|_| ()).expect("Key not unique");
         let res = op.result.take_ready().expect("Result not ready");
-        BufResult(res, op.carrier.into_inner())
+        BufResult::new(res, op.carrier.into_inner())
     }
 
     pub(crate) fn swap_extra(&self, extra: Extra) -> Extra {

@@ -1,15 +1,15 @@
 use std::{
-    mem::{self, MaybeUninit},
-    net::{SocketAddr, SocketAddrV4, SocketAddrV6},
+    mem,
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     ptr,
 };
 
-use super::AddressFamily;
+use super::{super::sys, AddressFamily};
 
 #[derive(Clone)]
 pub struct SockAddr {
     storage: sys::sockaddr_storage,
-    len: u32,
+    len: sys::Socklen,
 }
 
 impl SockAddr {
@@ -17,20 +17,46 @@ impl SockAddr {
         AddressFamily::from_raw(self.storage.ss_family)
     }
 
-    pub fn len(&self) -> u32 {
+    pub fn len(&self) -> sys::Socklen {
         self.len
     }
 
     /// Returns a raw pointer to the address.
-    pub fn addr_as_ptr<T>(&self) -> *const T {
+    pub fn as_ptr<T>(&self) -> *const T {
         &self.storage as *const sys::sockaddr_storage as _
     }
 
-    pub fn buffer_ptr_mut<T>(&mut self) -> (*mut T, *mut u32) {
+    pub fn as_ptr_len_mut<T>(&mut self) -> (*mut T, *mut sys::Socklen) {
         (
             &mut self.storage as *mut sys::sockaddr_storage as _,
             &mut self.len,
         )
+    }
+
+    pub fn as_addr(&self) -> Option<SocketAddr> {
+        let addr = match self.family() {
+            AddressFamily::INET => {
+                let storage = unsafe { &(*self.as_ptr::<sys::sockaddr_in>()) };
+
+                SocketAddr::V4(SocketAddrV4::new(
+                    Ipv4Addr::from(storage.sin_addr.s_addr.to_ne_bytes()),
+                    storage.sin_port.to_be(),
+                ))
+            }
+            AddressFamily::INET6 => {
+                let storage = unsafe { &(*self.as_ptr::<sys::sockaddr_in6>()) };
+                SocketAddr::V6(SocketAddrV6::new(
+                    Ipv6Addr::from(storage.sin6_addr.s6_addr),
+                    storage.sin6_port.to_be(),
+                    storage.sin6_flowinfo,
+                    storage.sin6_scope_id,
+                ))
+            }
+            _ => {
+                return None;
+            }
+        };
+        Some(addr)
     }
 }
 
@@ -83,63 +109,5 @@ impl From<SocketAddrV6> for SockAddr {
             mem::size_of::<sys::sockaddr_in6>() as _
         };
         SockAddr { storage, len }
-    }
-}
-
-#[repr(transparent)]
-#[derive(Clone, Copy)]
-struct Padding<T: Copy>(MaybeUninit<T>);
-
-impl<T: Copy> Default for Padding<T> {
-    fn default() -> Self {
-        Self(MaybeUninit::zeroed())
-    }
-}
-
-#[cfg(target_os = "linux")]
-mod sys {
-    use super::Padding;
-
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub(super) struct sockaddr_storage {
-        pub ss_family: u16,
-        #[cfg(target_pointer_width = "32")]
-        __ss_pad2: Padding<[u8; 128 - 2 - 4]>,
-        #[cfg(target_pointer_width = "64")]
-        __ss_pad2: Padding<[u8; 128 - 2 - 8]>,
-        __ss_align: usize,
-    }
-
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub(super) struct sockaddr_in {
-        pub sin_family: u16,
-        pub sin_port: u16,
-        pub sin_addr: in_addr,
-        pub sin_zero: [u8; 8],
-    }
-
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub(super) struct sockaddr_in6 {
-        pub sin6_family: u16,
-        pub sin6_port: u16,
-        pub sin6_flowinfo: u32,
-        pub sin6_addr: in6_addr,
-        pub sin6_scope_id: u32,
-    }
-
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub(super) struct in_addr {
-        pub s_addr: u32,
-    }
-
-    #[repr(C)]
-    #[repr(align(4))]
-    #[derive(Clone, Copy)]
-    pub(super) struct in6_addr {
-        pub s6_addr: [u8; 16],
     }
 }

@@ -7,8 +7,8 @@ use io_uring::{opcode, types};
 
 use super::{Accept, Bind, CloseSocket, Connect, CreateSocket, Listen, Recv, Send, ShutdownSocket};
 use crate::{
-    buf::{IoBuf, IoBufMut},
     driver::{Extra, OpCode, OpEntry},
+    io::{IoBuf, IoBufMut},
     os::net,
 };
 
@@ -39,7 +39,7 @@ unsafe impl<S: AsFd> OpCode for Bind<S> {
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
         opcode::Bind::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
-            self.addr.addr_as_ptr(),
+            self.addr.as_ptr(),
             self.addr.len(),
         )
         .build()
@@ -61,7 +61,7 @@ unsafe impl<S: AsFd> OpCode for Accept<S> {
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
-        let (addr_ptr, len_ptr) = self.addr.buffer_ptr_mut();
+        let (addr_ptr, len_ptr) = self.addr.as_ptr_len_mut();
 
         let entry = opcode::Accept::new(types::Fd(self.fd.as_fd().as_raw_fd()), addr_ptr, len_ptr)
             .flags(net::SOCK_CLOEXEC)
@@ -83,7 +83,7 @@ unsafe impl<S: AsFd> OpCode for Connect<S> {
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
         opcode::Connect::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
-            self.addr.addr_as_ptr(),
+            self.addr.as_ptr(),
             self.addr.len(),
         )
         .build()

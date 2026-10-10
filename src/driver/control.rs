@@ -1,4 +1,4 @@
-use crate::{buf::IntoInner, driver::OpCode};
+use crate::{driver::OpCode, io::IntoInner};
 
 type ControlInner<T> = <T as OpCode>::Control;
 

@@ -1,10 +1,12 @@
-pub type RawAddressFamily = std::os::raw::c_ushort;
+use super::super::sys;
+
+pub type RawAddressFamily = sys::SaFamily;
 
 pub const SOCK_CLOEXEC: i32 = sys::O_CLOEXEC;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 #[repr(transparent)]
-pub struct AddressFamily(pub(crate) RawAddressFamily);
+pub struct AddressFamily(RawAddressFamily);
 
 impl AddressFamily {
     pub const UNSPEC: Self = Self(sys::AF_UNSPEC as _);
@@ -18,7 +20,6 @@ impl AddressFamily {
         Self(raw)
     }
 
-    /// Returns the raw integer for this `AddressFamily`.
     #[inline]
     pub const fn as_raw(self) -> RawAddressFamily {
         self.0
@@ -29,7 +30,7 @@ pub type RawSocketType = u32;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 #[repr(transparent)]
-pub struct SocketType(pub(crate) RawSocketType);
+pub struct SocketType(RawSocketType);
 impl SocketType {
     pub const STREAM: Self = Self(sys::SOCK_STREAM as _);
 
@@ -75,19 +76,4 @@ impl Protocol {
     pub const fn as_raw(self) -> RawProtocol {
         self.0
     }
-}
-
-#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-mod sys {
-    pub(super) const AF_UNSPEC: u32 = 0;
-    pub(super) const AF_INET: u32 = 2;
-    pub(super) const AF_INET6: u32 = 10;
-
-    pub(super) const SOCK_STREAM: u32 = 1;
-    pub(super) const SOCK_DGRAM: u32 = 2;
-
-    pub(super) const IPPROTO_TCP: u32 = 6;
-    pub(super) const IPPROTO_UDP: u32 = 17;
-
-    pub(super) const O_CLOEXEC: i32 = 0x80000;
 }

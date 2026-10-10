@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    buf::BufResult,
     driver::{Extra, Key, OpCode, Proactor, PushEntry},
+    io::BufResult,
     runtime::waker,
 };
 

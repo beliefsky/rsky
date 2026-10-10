@@ -1,10 +1,7 @@
-use std::{
-    mem::ManuallyDrop,
-    os::fd::{AsFd, OwnedFd},
-};
+use std::{mem::ManuallyDrop, os::fd::OwnedFd};
 
 use crate::{
-    buf::{IntoInner, IoBuf, IoBufMut},
+    io::{IntoInner, IoBuf, IoBufMut},
     os::net::{AddressFamily, Protocol, RecvFlags, SendFlags, Shutdown, SockAddr, SocketType},
 };
 
@@ -36,35 +33,35 @@ impl IntoInner for CreateSocket {
     }
 }
 
-pub struct Bind<S: AsFd> {
+pub struct Bind<S> {
     pub(crate) fd: S,
     pub(crate) addr: SockAddr,
 }
 
-impl<S: AsFd> Bind<S> {
+impl<S> Bind<S> {
     pub fn new(fd: S, addr: SockAddr) -> Self {
         Self { fd, addr }
     }
 }
 
-pub struct Listen<S: AsFd> {
+pub struct Listen<S> {
     pub(crate) fd: S,
     pub(crate) backlog: i32,
 }
 
-impl<S: AsFd> Listen<S> {
+impl<S> Listen<S> {
     pub fn new(fd: S, backlog: i32) -> Self {
         Self { fd, backlog }
     }
 }
 
-pub struct Accept<S: AsFd> {
+pub struct Accept<S> {
     pub(crate) fd: S,
     pub(crate) addr: SockAddr,
     pub(crate) accepted_fd: Option<OwnedFd>,
 }
 
-impl<S: AsFd> Accept<S> {
+impl<S> Accept<S> {
     pub fn new(fd: S) -> Self {
         Self {
             fd,
@@ -74,7 +71,7 @@ impl<S: AsFd> Accept<S> {
     }
 }
 
-impl<S: AsFd> IntoInner for Accept<S> {
+impl<S> IntoInner for Accept<S> {
     type Inner = (OwnedFd, SockAddr);
 
     fn into_inner(mut self) -> Self::Inner {
@@ -83,23 +80,23 @@ impl<S: AsFd> IntoInner for Accept<S> {
     }
 }
 
-pub struct Connect<S: AsFd> {
+pub struct Connect<S> {
     pub(crate) fd: S,
     pub(crate) addr: SockAddr,
 }
 
-impl<S: AsFd> Connect<S> {
+impl<S> Connect<S> {
     pub fn new(fd: S, addr: SockAddr) -> Self {
         Self { fd, addr }
     }
 }
 
-pub struct ShutdownSocket<S: AsFd> {
+pub struct ShutdownSocket<S> {
     pub(crate) fd: S,
     pub(crate) how: Shutdown,
 }
 
-impl<S: AsFd> ShutdownSocket<S> {
+impl<S> ShutdownSocket<S> {
     pub fn new(fd: S, how: Shutdown) -> Self {
         Self { fd, how }
     }
@@ -117,19 +114,19 @@ impl CloseSocket {
     }
 }
 
-pub struct Recv<T: IoBufMut, S: AsFd> {
+pub struct Recv<T: IoBufMut, S> {
     pub(crate) fd: S,
     pub(crate) buffer: T,
     pub(crate) flags: RecvFlags,
 }
 
-impl<T: IoBufMut, S: AsFd> Recv<T, S> {
+impl<T: IoBufMut, S> Recv<T, S> {
     pub fn new(fd: S, buffer: T, flags: RecvFlags) -> Self {
         Self { fd, buffer, flags }
     }
 }
 
-impl<T: IoBufMut, S: AsFd> IntoInner for Recv<T, S> {
+impl<T: IoBufMut, S> IntoInner for Recv<T, S> {
     type Inner = T;
 
     fn into_inner(self) -> Self::Inner {
@@ -137,19 +134,19 @@ impl<T: IoBufMut, S: AsFd> IntoInner for Recv<T, S> {
     }
 }
 
-pub struct Send<T: IoBuf, S: AsFd> {
+pub struct Send<T: IoBuf, S> {
     pub(crate) fd: S,
     pub(crate) buffer: T,
     pub(crate) flags: SendFlags,
 }
 
-impl<T: IoBuf, S: AsFd> Send<T, S> {
+impl<T: IoBuf, S> Send<T, S> {
     pub fn new(fd: S, buffer: T, flags: SendFlags) -> Self {
         Self { fd, buffer, flags }
     }
 }
 
-impl<T: IoBuf, S: AsFd> IntoInner for Send<T, S> {
+impl<T: IoBuf, S> IntoInner for Send<T, S> {
     type Inner = T;
 
     fn into_inner(self) -> Self::Inner {

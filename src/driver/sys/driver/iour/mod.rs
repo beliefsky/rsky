@@ -125,6 +125,10 @@ impl Driver {
         IourExtra::new()
     }
 
+    pub fn attach(&mut self, _fd: RawFd) -> io::Result<()> {
+        Ok(())
+    }
+
     pub fn push(&mut self, key: ErasedKey) -> Poll<io::Result<usize>> {
         let op_entry = key.borrow().create_entry();
         match op_entry {
