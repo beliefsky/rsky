@@ -8,7 +8,6 @@ use super::{
 
 new_key_type! { pub struct TaskId; }
 
-/// A single-threaded dual queue (hot and cold) for scheduling tasks.
 pub struct TaskQueue {
     inner: UnsafeCell<Inner>,
 }
@@ -51,11 +50,6 @@ impl TaskQueue {
         }
     }
 
-    /// Clear the map.
-    ///
-    /// # Safety
-    ///
-    /// Must only be called by `Executor`.
     pub unsafe fn clear(&self) {
         unsafe {
             self.with_inner(|inner| {
@@ -180,10 +174,6 @@ impl TaskQueue {
         }
     }
 
-    /// # Safety
-    ///
-    /// The caller must ensure that no concurrent access to the queue occurs
-    /// while this reference is active.
     #[inline(always)]
     unsafe fn with_inner<R, F: FnOnce(&mut Inner) -> R>(&self, f: F) -> R {
         // SAFETY: Caller must ensure no concurrent access to the queue.
@@ -200,7 +190,6 @@ impl Inner {
         }
     }
 
-    /// Link a task to the end of a queue
     fn link_tail<const HOT: QueueMarker>(&mut self, key: TaskId) {
         let list = if HOT { &mut self.hot } else { &mut self.cold };
         let old_tail = list.tail;

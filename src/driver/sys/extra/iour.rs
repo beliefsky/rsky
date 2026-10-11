@@ -5,8 +5,6 @@ pub(in crate::driver::sys) struct Extra {
     sqe_flags: Flags,
     cqe_flags: u32,
     personality: Option<u16>,
-    /// Slot of this op inside the `in_flight` map of the `io_uring` driver,
-    /// set while the op is in flight.
     in_flight: Option<DefaultKey>,
 }
 

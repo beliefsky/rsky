@@ -47,20 +47,6 @@ impl<T> UnsafeCell<T> {
 pub(crate) type PanicResult<T> = Result<T, Panic>;
 pub(crate) type Panic = Box<dyn Any + Send + 'static>;
 
-/// A dual-queue executor optimized for singlethreaded usecase, with support for
-/// multithreaded wakes.
-///
-/// Same-thread wakes ([`Waker::wake`]) will schedule tasks within the queue
-/// directly; cross-thread wakes will send task id's to a channel, and
-/// piggybacked to singlethreaded wakes or ticks. This ensures maximum
-/// performance for singlethreaded scenario at the trade-off of worse tail
-/// latency for multithreaded wake-ups.
-///
-/// Optionally, all [`Waker`]s generated from this executor can contain an extra
-/// data, parameterized as `E`.
-///
-/// [`Waker`]: std::task::Waker
-/// [`Waker::wake`]: std::task::Waker::wake
 pub struct Executor {
     ptr: NonNull<Shared>,
     config: ExecutorConfig,
@@ -69,19 +55,10 @@ pub struct Executor {
 /// Configuration for [`Executor`].
 #[derive(Clone)]
 pub struct ExecutorConfig {
-    /// The size of the local queues, which hold tasks for same-thread
-    /// execution.
-    ///
-    /// This is dynamically resized to avoid blocking.
     pub local_queue_size: usize,
 
-    /// The maximum number of hot tasks to run in each tick.
     pub max_interval: u32,
 
-    /// A waker to be woken when a task is scheduled.
-    ///
-    /// This is useful for waking up drivers that switch to kernel state when
-    /// idle.
     pub waker: Option<Waker>,
 }
 
@@ -103,11 +80,6 @@ pub(crate) struct Shared {
 }
 
 impl Shared {
-    /// Drain all pending cross-thread wakes into the local hot `queue`.
-    ///
-    /// Skips the expensive [`SegQueue::pop`] entirely when nothing has been
-    /// pushed, using a single relaxed-ish load of [`Shared::pending`] instead
-    /// of crossbeam's `SeqCst` empty check.
     #[inline]
     pub(crate) fn drain_sync(&self, queue: &TaskQueue) {
         if self.pending.load(Ordering::Acquire) == 0 {
@@ -127,12 +99,10 @@ impl Shared {
 }
 
 impl Executor {
-    /// Create a new executor.
     pub fn new() -> Self {
         Self::with_config(ExecutorConfig::default())
     }
 
-    /// Create a new executor with config.
     pub fn with_config(mut config: ExecutorConfig) -> Self {
         let ptr = Box::into_raw(Box::new(Shared {
             waker: config.waker.take(),
@@ -147,20 +117,11 @@ impl Executor {
         }
     }
 
-    /// Spawn a future onto the executor.
     #[track_caller]
     pub fn spawn<F: Future + 'static>(&self, fut: F) -> JoinHandle<F::Output> {
         self.spawn_at(fut, SpawnMeta::capture())
     }
 
-    /// Spawn a future onto the executor, attributing it to `meta`.
-    ///
-    /// This is only useful for wrappers around [`spawn`] that want
-    /// [`tokio-console`] to blame their own caller instead of themselves;
-    /// [`SpawnMeta`] is a zero-sized no-op without the `console` feature.
-    ///
-    /// [`spawn`]: Self::spawn
-    /// [`tokio-console`]: crate::console
     pub fn spawn_at<F: Future + 'static>(&self, fut: F, meta: SpawnMeta) -> JoinHandle<F::Output> {
         let shared = self.shared();
         let tracker = shared.queue.tracker();
@@ -171,15 +132,6 @@ impl Executor {
         JoinHandle::new(task)
     }
 
-    /// Retrieve all sync tasks, schedule those to the tail of `hot` queue
-    /// and run at most [`max_interval`] tasks.
-    ///
-    /// Running start with `hot` tasks, then `cold` ones. Finished tasks will
-    /// be pushed back to tail of `cold` queue.
-    ///
-    /// Return whether there are still hot tasks after the tick.
-    ///
-    /// [`max_interval`]: ExecutorConfig::max_interval
     pub fn tick(&self) -> bool {
         let queue = self.queue();
 
@@ -190,10 +142,6 @@ impl Executor {
             let task = queue.take(id).expect("Task was not reset back");
             let res = unsafe { task.run() };
             if res.is_ready() {
-                // SAFETY: We're removing it soon, so drop will only be called
-                // once. The shared pointer is kept valid until
-                // the Executor is dropped,
-                // to avoid use-after-free issues with concurrent wakers.
                 unsafe { task.drop() };
                 queue.remove(id);
             } else {
@@ -204,29 +152,14 @@ impl Executor {
         queue.has_hot()
     }
 
-    /// Check if there's still scheduled task that needs to be ran.
-    #[doc(hidden)]
     pub fn has_task(&self) -> bool {
         self.queue().hot_head().is_some()
     }
 
-    /// Returns the number of alive tasks in the executor.
-    ///
-    /// A task is alive from the moment it is spawned until the [`tick`] where
-    /// it completes or where its cancellation is processed. It does not
-    /// matter whether the task is scheduled to run or waiting to be woken.
-    ///
-    /// [`tick`]: Self::tick
     pub fn num_alive_tasks(&self) -> usize {
         self.queue().len()
     }
 
-    /// Clear the executor, drop all tasks.
-    ///
-    /// This should be called only in context of the runtime, if any future may
-    /// use it. Any panic happened during dropping the future will cause the
-    /// process to abort. If this was not called before dropping, all tasks will
-    /// be leakded.
     pub fn clear(&self) {
         while self.shared().sync.pop().is_some() {}
         unsafe { self.queue().clear() };
@@ -239,7 +172,6 @@ impl Executor {
 
     #[inline(always)]
     fn queue(&self) -> &TaskQueue {
-        // SAFETY: Executor is single threaded
         unsafe { self.shared().queue.get_unchecked() }
     }
 }

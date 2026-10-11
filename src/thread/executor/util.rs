@@ -1,9 +1,5 @@
 use std::task::Poll;
 
-/// Create a guard that abort the process when the thread panicked before it's
-/// out of scope.
-///
-/// If loom is enabled, this does nothing.
 macro_rules! panic_guard {
     () => {
         let _b = {

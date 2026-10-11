@@ -32,7 +32,6 @@ impl<T: OpCode> Key<T> {
 }
 
 impl<T: OpCode + 'static> Key<T> {
-    /// Create [`RawOp`] and get the [`Key`] to it.
     pub(crate) fn new(op: T, extra: impl Into<Extra>) -> Self {
         let erased = ErasedKey::new(op, extra.into());
 

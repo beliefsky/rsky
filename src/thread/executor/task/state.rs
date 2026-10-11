@@ -6,26 +6,18 @@ use std::{
     },
 };
 
-/// Executor has scheduled the task to run, but it is not running.
 const SCHEDULED: usize = 1 << 0;
 
-/// A waker is scheduling from remote.
 const SCHEDULING: usize = 1 << 1;
 
-/// Not in the process of cloning and setting a waker to the task.
 const NOT_SETTING_WAKER: usize = 1 << 2;
 
-/// A waker is set to the task.
 const HAS_WAKER: usize = 1 << 3;
 
-/// The task is completed, and `FutureState` has switched to `result`.
 const COMPLETED: usize = 1 << 4;
 
-/// The result is present.
 const HAS_RESULT: usize = 1 << 5;
 
-/// The task is not cancelled. It might be cancelled because either the
-/// `JoinHandle` is dropped without detaching or the Exector is dropped.
 const NOT_CANCELLED: usize = 1 << 6;
 
 const RC_SHIFT: usize = 7;
@@ -61,7 +53,6 @@ impl Consistency for Weak {
 }
 
 impl State {
-    /// Create a state with two given count.
     pub(crate) fn new<const N: usize>() -> Self {
         const INIT: usize = NOT_SETTING_WAKER | NOT_CANCELLED;
 
@@ -118,14 +109,12 @@ impl State {
         Snapshot(self.0.fetch_or(flag, Strong::ACQ_REL))
     }
 
-    /// Mark as no waker & cancelled
     pub(crate) fn set_dropped(&self) -> Snapshot {
         const FLAG: usize = !HAS_WAKER & !NOT_CANCELLED;
 
         Snapshot(self.0.fetch_and(FLAG, Strong::ACQ_REL))
     }
 
-    /// Load the state with acquire ordering.
     pub(crate) fn load<C: Consistency>(&self) -> Snapshot {
         Snapshot(self.0.load(C::ACQUIRE))
     }
@@ -138,7 +127,6 @@ impl State {
         state
     }
 
-    /// Decrease the reference count by one and return the old state.
     pub(crate) fn dec(&self) -> Snapshot {
         let state = Snapshot(self.0.fetch_sub(RC_UNIT, Strong::ACQ_REL));
         debug_assert!(state.count() >= 1, "Reference count underflow");

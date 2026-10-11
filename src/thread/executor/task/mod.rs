@@ -24,13 +24,9 @@ mod local;
 mod remote;
 mod state;
 
-/// A reference counter pointer to the [`TaskAlloc`].
 #[repr(transparent)]
 pub(crate) struct Task(NonNull<Header>);
 
-/// Allocated part of a task, which contains the future, result and all
-/// necessary metadata. A pointer to `TaskAlloc` is always a valid pointer to a
-/// `Header`.
 #[repr(C)]
 struct TaskAlloc<F: Future> {
     header: Header,
@@ -81,17 +77,11 @@ impl<F: Future + 'static> TaskAlloc<F> {
     unsafe fn run_future(header: NonNull<Header>, cx: &mut Context<'_>) -> Poll<()> {
         let future_cell = Self::future_cell(header);
 
-        // SAFETY:
-        // - The caller guarantees that we're pinned
-        // - The caller guarantees that we're in the `future` state
         let res = ready!(future_cell.with_mut(|fut_ptr| {
             let fut = unsafe { Pin::new_unchecked(&mut *(*fut_ptr).future) };
             transpose(catch_unwind(AssertUnwindSafe(|| fut.poll(cx))))
         }));
 
-        // SAFETY: The caller guarantees that we're in the `future` state and
-        // are on the same thread as the future is created, so it's safe
-        // to drop the future
         future_cell.with_mut(|fut_ptr| {
             panic_guard!();
             unsafe { drop_in_place(fut_ptr as *mut F) };
@@ -107,12 +97,6 @@ impl<F: Future + 'static> TaskAlloc<F> {
     unsafe fn take_result(header: NonNull<Header>, target: NonNull<()>) {
         let future_cell = Self::future_cell(header);
 
-        // SAFETY:
-        // - The caller guarantees that we're in the `result` state and
-        //   guarantees if the result type is not multithread-safe, this is
-        //   called on the same thread as the future is created.
-        // - The caller guarantees that the target pointer is valid for writes
-        //   and properly aligned for `PanicResult<F::Output>`.
         future_cell.with(|fut_ptr| {
             let fut_ptr = fut_ptr as *const PanicResult<F::Output>;
             unsafe { std::ptr::copy_nonoverlapping(fut_ptr, target.as_ptr().cast(), 1) };
@@ -120,9 +104,6 @@ impl<F: Future + 'static> TaskAlloc<F> {
     }
 
     unsafe fn drop_future(header: NonNull<Header>, has_result: bool) {
-        // The future/result types are unwind-unsafe (ManuallyDrop, union).
-        // Dropping them during an existing panic could trigger a second panic,
-        // which would be UB. Instead, leak the contents during unwinding.
         if ::std::thread::panicking() {
             return;
         }
@@ -141,14 +122,6 @@ impl<F: Future + 'static> TaskAlloc<F> {
     }
 
     unsafe fn dealloc(header: NonNull<Header>) {
-        // Unlike `drop_future`, this runs during a panic as well: the header
-        // holds the task's span, and leaking it would leave the task running in
-        // the console forever. The subscriber is then reentered while
-        // unwinding, so a panic inside it aborts rather than unwinds.
-        //
-        // SAFETY: The caller guarantees that the pointer is valid and properly
-        // aligned for `TaskAlloc<F>`, and that no other reference to
-        // the allocation exists.
         drop(unsafe { Box::from_raw(header.as_ptr().cast::<TaskAlloc<F>>()) });
     }
 }
@@ -176,8 +149,6 @@ impl Task {
             }),
         });
 
-        // SAFETY: The pointer was returned by `Box`, which guarantees that it's
-        // non-null and properly aligned.
         let ptr = unsafe { NonNull::new_unchecked(Box::into_raw(alloc) as _) };
 
         array::from_fn(|_| Task(ptr))
@@ -195,15 +166,6 @@ impl Task {
         unsafe { &*(ptr as *const Header) }.state.inc();
     }
 
-    /// Record a waker operation of this task for [`tokio-console`].
-    ///
-    /// This is a no-op unless the `console` feature is enabled.
-    ///
-    /// # Safety
-    ///
-    /// `ptr` must point to a live task allocation.
-    ///
-    /// [`tokio-console`]: crate::console
     #[inline(always)]
     pub(crate) unsafe fn record_waker_op(ptr: *const (), op: WakerOp) {
         unsafe { &*(ptr as *const Header) }.span.waker_op(op);
@@ -216,9 +178,6 @@ impl Task {
         }
     }
 
-    /// Cancel the task.
-    ///
-    /// If `drop_result` is true, the result will be dropped if it exists.
     pub fn cancel(&self, drop_result: bool) {
         let header = self.header();
 
@@ -230,10 +189,6 @@ impl Task {
         }
     }
 
-    /// # Safety
-    ///
-    /// This function can only be called by `Executor` and the task must not be
-    /// in completed state.
     pub unsafe fn run(&self) -> Poll<()> {
         let header = self.header();
 
@@ -242,8 +197,6 @@ impl Task {
             return Poll::Ready(());
         }
 
-        // The console counts one poll of the task per entry of its span, and
-        // measures the time it stays entered as the busy time of the task.
         let _entered = header.span.enter();
 
         self.with_waker(|waker| {
@@ -252,11 +205,6 @@ impl Task {
             if res.is_ready() {
                 let state = header.state.finish_running();
 
-                // JoinHandle will not set another waker after this check since
-                // we have set the state to completed before
-                // with Release order: they will either observe it and
-                // get the result, or not observe it and enter SETTING_WAKER
-                // critical section.
                 if state.has_waker() && !state.is_setting_waker() {
                     header
                         .waker
@@ -268,9 +216,6 @@ impl Task {
         })
     }
 
-    /// # Safety
-    ///
-    /// This function can only be called by `JoinHandle`.
     pub unsafe fn poll<T>(&self, cx: &mut Context<'_>) -> Poll<Option<PanicResult<T>>> {
         match self.view() {
             Ok(local) => unsafe { local.poll(cx) },
@@ -278,17 +223,6 @@ impl Task {
         }
     }
 
-    // Drop everything inside the allocation, but do not deallocate the memory.
-    // This is used when the task is completed or cancelled, and we want to
-    // drop the future, result and/or waker, but the memory will be
-    // deallocated when the reference count reaches 0.
-    //
-    // The shared pointer is also set to null to prevent any further scheduling
-    // or waker setting.
-    //
-    // # Safety
-    //
-    // Can only be called by the Executor once.
     pub unsafe fn drop(&self) {
         let header = self.header();
         debug_assert!(
@@ -299,21 +233,14 @@ impl Task {
 
         header.shared.store(ptr::null_mut(), Release);
 
-        // Dropping the future/result and waker during unwinding on
-        // unwind-unsafe types could trigger a second panic. Skip
-        // content drops if already panicking.
         if ::std::thread::panicking() {
             return;
         }
 
         if !state.is_completed() {
-            // The task has not completed yet, drop future
             unsafe { (header.vtable.drop_future)(self.0, false) };
         }
 
-        // If `JoinHandle` is setting the waker remotely, it'll check the state
-        // afterwards and drop the waker. Otherwise, we drop the waker here if
-        // it exists.
         if state.has_waker() && !state.is_setting_waker() {
             super::panic_guard!();
 
@@ -323,27 +250,14 @@ impl Task {
         }
     }
 
-    /// Returns true if this Task has been finalized, either because it's been
-    /// completed or canceled.
     pub(crate) fn is_finished(&self) -> bool {
         let state = self.header().state.load::<Strong>();
         state.is_completed() || state.is_cancelled()
     }
 
-    /// Wait for wakers to finish scheduling, if any. This is necessary for
-    /// `Executor` to drop `Shared` since scheduling requires it.
     pub(crate) fn wait_for_scheduling(&self) {
         let header = self.header();
 
-        // Wait for any ongoing scheduling to complete.
-        // We MUST do this to prevent use-after-free when we drop Shared.
-        // This is safe in Executor::drop context because:
-        // 1. All tasks have been cleared, so no new scheduling from task
-        //    execution
-        // 2. Only external wakers (from other threads) might still be
-        //    scheduling
-        // 3. Those wakers will see the null pointer and return early
-        // 4. We only need to wait for ones that already loaded the pointer
         while header.state.load::<Strong>().is_scheduling() {
             std::hint::spin_loop();
         }
@@ -356,9 +270,6 @@ impl Task {
     #[inline(always)]
     fn view(&self) -> Result<Local<'_>, Remote<'_>> {
         if self.header().tracker.valid() {
-            // SAFETY: We have checked that the tracker is valid, so this must
-            // be the same thread as the task allocation is created
-            // on.
             Ok(unsafe { Local::new(self.0) })
         } else {
             Err(Remote::new(self.0))
@@ -374,14 +285,7 @@ impl Drop for Task {
             return;
         };
 
-        // The future/result and waker types are unwind-unsafe (ManuallyDrop in
-        // union, MaybeUninit). Dropping them during an existing panic could
-        // trigger a second panic, which would be UB. Skip content drops but
-        // still deallocate the memory, since dealloc does not run destructors
-        // on the inner types. (It does run the one of the task span of the
-        // `console` feature, which is wanted: the console would otherwise show
-        // the task as running forever.)
-        if ::std::thread::panicking() {
+        if std::thread::panicking() {
             unsafe { (header.vtable.dealloc)(self.0) }
             return;
         }
@@ -391,26 +295,16 @@ impl Drop for Task {
         debug_assert!(state.is_completed() | state.is_cancelled());
         debug_assert!(!state.is_setting_waker());
 
-        // If the result is still present, drop it now
-        // This happens when JoinHandle was dropped/detached without taking the
-        // result
         if state.has_result() {
             unsafe { (header.vtable.drop_future)(self.0, true) };
         }
 
-        // If the waker is still present, drop it now
-        // This happens when the Task is dropped when JoinHandle was setting
-        // waker remotely.
         if state.has_waker() {
             header
                 .waker
                 .with_mut(|ptr| unsafe { drop_in_place(ptr.cast::<Waker>()) });
         }
 
-        // SAFETY: We have checked that the reference count is 0, so no other
-        // reference to the allocation exists and we can safely
-        // deallocate it; and deallocation is thread-safe since we're
-        // not touching anything inside (dropping).
         unsafe { (header.vtable.dealloc)(self.0) }
     }
 }

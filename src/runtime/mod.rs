@@ -143,7 +143,6 @@ impl Runtime {
 
 impl Drop for Runtime {
     fn drop(&mut self) {
-        // this is not the last runtime reference, no need to clear
         if Rc::strong_count(&self.executor) > 1 {
             return;
         }

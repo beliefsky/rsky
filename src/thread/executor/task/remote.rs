@@ -11,8 +11,6 @@ use super::{
     state::{Snapshot, Strong},
 };
 
-/// A remote view into the task allocation, which is used when the [`Task`]
-/// is accessed from a different thread than it's created on.
 #[repr(transparent)]
 pub(super) struct Remote<'a> {
     ptr: NonNull<Header>,
@@ -35,8 +33,6 @@ impl<'a> Remote<'a> {
             return;
         }
 
-        // Load shared pointer - it should always be valid since we keep it
-        // until Executor drops
         let Some(shared) = (unsafe { self.header().shared.load(Ordering::Acquire).as_ref() })
         else {
             self.header().state.finish_scheduling();
@@ -45,12 +41,8 @@ impl<'a> Remote<'a> {
 
         super::panic_guard!();
 
-        // Reserve a pending slot *before* pushing so the consumer's fast-path
-        // counter is always an upper bound on the queued items and its
-        // `fetch_sub` can never underflow.
         shared.pending.fetch_add(1, Ordering::Release);
 
-        // The queue is unbounded, so this never blocks.
         shared.sync.push(self.header().id);
         if let Some(ref waker) = shared.waker {
             waker.wake_by_ref();
@@ -65,7 +57,6 @@ impl<'a> Remote<'a> {
         loop {
             debug_assert!(state.has_result() || state.is_cancelled() || !state.is_completed());
 
-            // The task is completed, take the result
             if state.has_result() {
                 self.header().state.set_has_result::<Strong, false>();
 
@@ -75,20 +66,17 @@ impl<'a> Remote<'a> {
 
                 break Poll::Ready(Some(unsafe { res.assume_init() }));
             } else if state.is_cancelled() {
-                // The task is cancelled without result, return None
                 break Poll::Ready(None);
             }
 
             state = self.header().state.start_setting_waker();
 
             if state.has_result() {
-                // It's waiting for us to stop. Finish setting waker here.
                 debug_assert!(state.is_completed());
                 state = self.header().state.finish_setting_waker::<false>();
 
                 continue;
             } else if state.is_cancelled() {
-                // The task was cancelled after last check
                 self.header().state.finish_setting_waker::<false>();
 
                 break Poll::Ready(None);
@@ -98,7 +86,6 @@ impl<'a> Remote<'a> {
                     .waker
                     .with(|waker| cx.waker().will_wake(unsafe { (&*waker).assume_init_ref() }))
             {
-                // Waker is already up-to-date, leave it in place.
                 self.header().state.finish_setting_waker::<true>();
                 break Poll::Pending;
             }
@@ -106,16 +93,12 @@ impl<'a> Remote<'a> {
             self.header().waker.with_mut(|ptr| {
                 super::panic_guard!();
 
-                // SAFETY: We're in SETTING_WAKER state, Executor will not
-                // access the waker until we're finished.
                 let waker = unsafe { &mut *ptr };
 
                 if state.has_waker() {
                     unsafe { waker.assume_init_drop() };
                 }
 
-                // We're in the critical section, executor will wait for us to
-                // finish
                 waker.write(cx.waker().clone());
             });
 

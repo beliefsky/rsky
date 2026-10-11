@@ -9,7 +9,6 @@ thread_local! {
     static THREAD_ID: Cell<ThreadId> = Cell::new(std::thread::current().id());
 }
 
-/// Get the current [`ThreadId`].
 pub(crate) fn current_id() -> ThreadId {
     THREAD_ID.with(|id| id.get())
 }
@@ -29,7 +28,6 @@ impl<T> SendWrapper<T> {
     }
 
     pub unsafe fn take_unchecked(self) -> T {
-        // Prevent drop() from being called, as it would drop `self.data` twice
         let mut this = ManuallyDrop::new(self);
 
         unsafe { ManuallyDrop::take(&mut this.data) }
@@ -38,7 +36,6 @@ impl<T> SendWrapper<T> {
     #[track_caller]
     pub fn take(self) -> T {
         if self.valid() {
-            // SAFETY: the same thread as the creator
             unsafe { self.take_unchecked() }
         } else {
             invalid_deref()
@@ -154,8 +151,6 @@ fn invalid_drop() {
                               it has been created with.";
 
     if !std::thread::panicking() {
-        // panic because of dropping from wrong thread
-        // only do this while not unwinding (could be caused by deref from wrong thread)
         panic!("{}", DROP_ERROR)
     }
 }
