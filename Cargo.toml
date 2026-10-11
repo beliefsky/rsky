@@ -1,0 +1,27 @@
+[package]
+name = "rsky"
+version = "0.1.0"
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+io-uring = { version = "^0.7", features = ["direct-syscall"] }
+pin-project-lite = "^0.2"
+thin-cell = "^0.2"
+
+slotmap = "^1.1"
+crossbeam-queue = "^0.3"
+
+
+[dev-dependencies]
+compio = {version = "^0.19", features = ["net"]}
+
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
