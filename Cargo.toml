@@ -9,7 +9,6 @@ edition = "2024"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = { version = "^0.7", features = ["direct-syscall"] }
-rustix = "^1.1"
 pin-project-lite = "^0.2"
 thin-cell = "^0.2"
 

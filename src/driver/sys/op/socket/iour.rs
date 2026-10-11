@@ -5,10 +5,13 @@ use std::{
 
 use io_uring::{opcode, types};
 
-use super::{Accept, Bind, CloseSocket, Connect, CreateSocket, Listen, Recv, Send, ShutdownSocket};
+use super::{
+    Accept, Bind, CloseSocket, Connect, CreateSocket, Listen, Recv, RecvVectored,
+    RecvVectoredControl, Send, SendVectored, SendVectoredControl, ShutdownSocket,
+};
 use crate::{
     driver::{Extra, OpCode, OpEntry},
-    io::{IoBuf, IoBufMut},
+    io::{IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
     os::net,
 };
 
@@ -141,5 +144,38 @@ unsafe impl<T: IoBuf, S: AsFd> OpCode for Send<T, S> {
         .flags(self.flags.flags() as _)
         .build()
         .into()
+    }
+}
+
+unsafe impl<T: IoVectoredBufMut, S: AsFd> OpCode for RecvVectored<T, S> {
+    type Control = RecvVectoredControl;
+
+    unsafe fn init(&mut self, ctrl: &mut Self::Control) {
+        self.init_control(ctrl)
+    }
+
+    fn create_entry(&mut self, control: &mut Self::Control) -> OpEntry {
+        opcode::RecvMsg::new(
+            types::Fd(self.fd.as_fd().as_raw_fd()),
+            control.msg.as_mut_ptr(),
+        )
+        .flags(self.flags.flags())
+        .build()
+        .into()
+    }
+}
+
+unsafe impl<T: IoVectoredBuf, S: AsFd> OpCode for SendVectored<T, S> {
+    type Control = SendVectoredControl;
+
+    unsafe fn init(&mut self, ctrl: &mut Self::Control) {
+        self.init_control(ctrl)
+    }
+
+    fn create_entry(&mut self, control: &mut Self::Control) -> OpEntry {
+        opcode::SendMsg::new(types::Fd(self.fd.as_fd().as_raw_fd()), control.msg.as_ptr())
+            .flags(self.flags.flags())
+            .build()
+            .into()
     }
 }

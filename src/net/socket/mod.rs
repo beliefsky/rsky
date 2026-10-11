@@ -4,10 +4,11 @@ use crate::{
     driver::{
         SharedFd,
         op::{
-            Accept, Bind, CloseSocket, Connect, CreateSocket, Listen, Recv, Send, ShutdownSocket,
+            Accept, Bind, CloseSocket, Connect, CreateSocket, Listen, Recv, RecvVectored, Send,
+            SendVectored, ShutdownSocket,
         },
     },
-    io::{BufResult, IntoInner, IoBuf, IoBufMut},
+    io::{BufResult, IntoInner, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
     os::net::{AddressFamily, Protocol, RecvFlags, SendFlags, Shutdown, SockAddr, SocketType},
     runtime::{self, Attacher},
 };
@@ -37,30 +38,24 @@ impl Socket {
     }
 
     pub async fn bind(&self, addr: SockAddr) -> io::Result<()> {
-        let (res, _) = runtime::submit(Bind::new(self.shared_fd(), addr))
+        runtime::submit(Bind::new(self.shared_fd(), addr))
             .await
-            .into();
-        res?;
-
-        Ok(())
+            .into_res()
+            .map(|_| ())
     }
 
     pub async fn listen(&self, backlog: i32) -> io::Result<()> {
-        let (res, _) = runtime::submit(Listen::new(self.shared_fd(), backlog))
+        runtime::submit(Listen::new(self.shared_fd(), backlog))
             .await
-            .into();
-        res?;
-
-        Ok(())
+            .into_res()
+            .map(|_| ())
     }
 
     pub async fn connect(&self, addr: SockAddr) -> io::Result<()> {
-        let (res, _) = runtime::submit(Connect::new(self.shared_fd(), addr))
+        runtime::submit(Connect::new(self.shared_fd(), addr))
             .await
-            .into();
-        res?;
-
-        Ok(())
+            .into_res()
+            .map(|_| ())
     }
 
     pub async fn accept(&self) -> io::Result<(Self, SockAddr)> {
@@ -84,27 +79,42 @@ impl Socket {
         async move {
             let fd = self.socket.into_inner().take().await;
             if let Some(fd) = fd {
-                let (res, _) = runtime::submit(CloseSocket::new(fd)).await.into();
-                res?;
+                runtime::submit(CloseSocket::new(fd)).await.into_res()?;
             }
             Ok(())
         }
     }
 
     pub async fn recv<B: IoBufMut>(&self, buffer: B, flags: RecvFlags) -> BufResult<usize, B> {
-        let res = runtime::submit(Recv::new(self.shared_fd(), buffer, flags))
+        runtime::submit(Recv::new(self.shared_fd(), buffer, flags))
             .await
-            .into_inner();
-
-        res
+            .into_inner()
     }
 
     pub async fn send<B: IoBuf>(&self, buffer: B, flags: SendFlags) -> BufResult<usize, B> {
-        let res = runtime::submit(Send::new(self.shared_fd(), buffer, flags))
+        runtime::submit(Send::new(self.shared_fd(), buffer, flags))
             .await
-            .into_inner();
+            .into_inner()
+    }
 
-        res
+    pub async fn recv_vectored<V: IoVectoredBufMut>(
+        &self,
+        buffer: V,
+        flags: RecvFlags,
+    ) -> BufResult<usize, V> {
+        runtime::submit(RecvVectored::new(self.shared_fd(), buffer, flags))
+            .await
+            .into_inner()
+    }
+
+    pub async fn send_vectored<V: IoVectoredBuf>(
+        &self,
+        buffer: V,
+        flags: SendFlags,
+    ) -> BufResult<usize, V> {
+        runtime::submit(SendVectored::new(self.shared_fd(), buffer, flags))
+            .await
+            .into_inner()
     }
 
     fn shared_fd(&self) -> SharedFd<OwnedFd> {

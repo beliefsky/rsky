@@ -94,6 +94,11 @@ impl<T, B> BufResult<T, B> {
     }
 
     #[inline]
+    pub fn into_res(self) -> io::Result<T> {
+        self.0
+    }
+
+    #[inline]
     pub fn into_parts(self) -> (io::Result<T>, B) {
         (self.0, self.1)
     }
@@ -106,8 +111,8 @@ impl<T, B> From<(io::Result<T>, B)> for BufResult<T, B> {
 }
 
 impl<T, B> From<BufResult<T, B>> for (io::Result<T>, B) {
-    fn from(BufResult(res, buf): BufResult<T, B>) -> Self {
-        (res, buf)
+    fn from(res: BufResult<T, B>) -> Self {
+        res.into_parts()
     }
 }
 

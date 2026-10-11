@@ -1,8 +1,11 @@
 use std::{mem::ManuallyDrop, os::fd::OwnedFd};
 
 use crate::{
-    io::{IntoInner, IoBuf, IoBufMut},
-    os::net::{AddressFamily, Protocol, RecvFlags, SendFlags, Shutdown, SockAddr, SocketType},
+    io::{IntoInner, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
+    os::net::{
+        AddressFamily, IoVec, MsgHdr, Protocol, RecvFlags, SendFlags, Shutdown, SockAddr,
+        SocketType,
+    },
 };
 
 mod iour;
@@ -151,5 +154,87 @@ impl<T: IoBuf, S> IntoInner for Send<T, S> {
 
     fn into_inner(self) -> Self::Inner {
         self.buffer
+    }
+}
+
+pub struct RecvVectored<T: IoVectoredBufMut, S> {
+    pub(crate) fd: S,
+    pub(crate) buffer: T,
+    pub(crate) flags: RecvFlags,
+}
+
+impl<T: IoVectoredBufMut, S> RecvVectored<T, S> {
+    pub fn new(fd: S, buffer: T, flags: RecvFlags) -> Self {
+        Self { fd, buffer, flags }
+    }
+}
+
+impl<T: IoVectoredBufMut, S> IntoInner for RecvVectored<T, S> {
+    type Inner = T;
+
+    fn into_inner(self) -> Self::Inner {
+        self.buffer
+    }
+}
+
+pub struct SendVectored<T: IoVectoredBuf, S> {
+    pub(crate) fd: S,
+    pub(crate) buffer: T,
+    pub(crate) flags: SendFlags,
+}
+
+impl<T: IoVectoredBuf, S> SendVectored<T, S> {
+    pub fn new(fd: S, buffer: T, flags: SendFlags) -> Self {
+        Self { fd, buffer, flags }
+    }
+}
+
+impl<T: IoVectoredBuf, S> IntoInner for SendVectored<T, S> {
+    type Inner = T;
+
+    fn into_inner(self) -> Self::Inner {
+        self.buffer
+    }
+}
+
+pub struct RecvVectoredControl {
+    pub(crate) msg: MsgHdr,
+    pub(crate) slices: Vec<IoVec>,
+}
+
+impl Default for RecvVectoredControl {
+    fn default() -> Self {
+        Self {
+            msg: unsafe { std::mem::zeroed() },
+            slices: Vec::new(),
+        }
+    }
+}
+
+impl<T: IoVectoredBufMut, S> RecvVectored<T, S> {
+    pub(crate) fn init_control(&mut self, ctrl: &mut RecvVectoredControl) {
+        ctrl.slices = self.buffer.iter_slice().map(IoVec::from_slice).collect();
+        ctrl.msg.set_mut_vec(ctrl.slices.as_mut_slice());
+    }
+}
+
+pub struct SendVectoredControl {
+    pub(crate) msg: MsgHdr,
+    pub(crate) slices: Vec<IoVec>,
+}
+
+impl<T: IoVectoredBuf, S> SendVectored<T, S> {
+    pub(crate) fn init_control(&mut self, ctrl: &mut SendVectoredControl) {
+        ctrl.slices = self.buffer.iter_slice().map(IoVec::from_slice).collect();
+        ctrl.msg.set_vec(ctrl.slices.as_slice());
+    }
+}
+
+impl Default for SendVectoredControl {
+    fn default() -> Self {
+        Self {
+            msg: MsgHdr::default(),
+            slices: Vec::new(),
+        }
     }
 }
