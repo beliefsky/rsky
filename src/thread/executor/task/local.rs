@@ -11,7 +11,6 @@ use super::{
     state::{Snapshot, Strong, Weak},
 };
 
-/// A local view into the task allocation, which enables some optimizations.
 #[repr(transparent)]
 pub(super) struct Local<'a> {
     ptr: NonNull<Header>,
@@ -19,10 +18,6 @@ pub(super) struct Local<'a> {
 }
 
 impl<'a> Local<'a> {
-    /// # Safety
-    ///
-    /// The caller must guarantee that this is created on the same thread as the
-    /// task allocation.
     #[inline(always)]
     pub unsafe fn new(ptr: NonNull<Header>) -> Self {
         Self {
@@ -32,18 +27,12 @@ impl<'a> Local<'a> {
     }
 
     pub fn schedule(&self) {
-        // Load shared pointer atomically - it may be null if cancelled
-        // `Relaxed` is fine here since we're on the same thread as `Executor`,
-        // there's no way to schedule as task while it's being dropped
         let Some(shared) = (unsafe { self.header().shared.load(Relaxed).as_ref() }) else {
             return;
         };
 
-        // SAFETY: Type invariant
         let queue = unsafe { shared.queue.get_unchecked() };
-        // Piggyback any pending cross-thread wakes. The fast-path guard inside
-        // avoids touching the sync queue at all when none are pending, which
-        // is the common case for single-threaded workloads.
+
         shared.drain_sync(queue);
 
         queue.make_hot(self.header().id);
@@ -58,7 +47,6 @@ impl<'a> Local<'a> {
 
         debug_assert!(state.has_result() || !state.is_completed() || state.is_cancelled());
 
-        // The task is completed, take the result
         if state.has_result() {
             self.header().state.set_has_result::<Strong, false>();
 
@@ -69,12 +57,10 @@ impl<'a> Local<'a> {
             return Poll::Ready(Some(unsafe { res.assume_init() }));
         }
 
-        // The task is cancelled without result, return None
         if state.is_cancelled() {
             return Poll::Ready(None);
         }
 
-        // Task is not completed yet, set up waker
         if !state.is_completed() {
             return self.header().waker.with_mut(|waker| {
                 super::panic_guard!();

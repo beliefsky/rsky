@@ -28,12 +28,10 @@ pub enum PushEntry<K, R> {
 }
 
 impl<K, R> PushEntry<K, R> {
-    /// Get if the current variant is [`PushEntry::Ready`].
     pub const fn is_ready(&self) -> bool {
         matches!(self, Self::Ready(_))
     }
 
-    /// Take the ready variant if exists.
     pub fn take_ready(self) -> Option<R> {
         match self {
             Self::Pending(_) => None,
@@ -41,7 +39,6 @@ impl<K, R> PushEntry<K, R> {
         }
     }
 
-    /// Map the [`PushEntry::Pending`] branch.
     pub fn map_pending<L>(self, f: impl FnOnce(K) -> L) -> PushEntry<L, R> {
         match self {
             Self::Pending(k) => PushEntry::Pending(f(k)),
@@ -49,7 +46,6 @@ impl<K, R> PushEntry<K, R> {
         }
     }
 
-    /// Map the [`PushEntry::Ready`] branch.
     pub fn map_ready<S>(self, f: impl FnOnce(R) -> S) -> PushEntry<K, S> {
         match self {
             Self::Pending(k) => PushEntry::Pending(k),

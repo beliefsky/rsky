@@ -32,16 +32,7 @@ impl ContextExt for Context<'_> {
 }
 
 pin_project_lite::pin_project! {
-    /// Returned [`Future`] for [`Runtime::submit`].
-    ///
-    /// When this is dropped and the operation hasn't finished yet, it will try to
-    /// cancel the operation.
-    ///
-    /// By default, this implements `Future<Output = BufResult<usize, T>>`. If
-    /// [`Extra`] is needed, call [`.with_extra()`] to get a `Submit<T, Extra>`
-    /// which implements `Future<Output = (BufResult<usize, T>, Extra)>`.
-    ///
-    /// [`.with_extra()`]: Submit::with_extra
+
     pub struct Submit<T: OpCode, E = ()> {
         driver: Rc<RefCell<Proactor>>,
         state: Option<State<T, E>>,

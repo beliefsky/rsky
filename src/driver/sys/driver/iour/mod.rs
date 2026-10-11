@@ -204,16 +204,13 @@ impl Driver {
         want_sqe: usize,
         timeout: Option<Duration>,
     ) -> io::Result<usize> {
-        // Publish the SQ tail and read how many staged SQEs to submit this
-        // call.
         let to_submit = self.inner.submission().len() as u32;
         let submitter = self.inner.submitter();
         if let Some(duration) = timeout {
             let timespec = timespec(duration);
             let args = SubmitArgs::new().timespec(&timespec);
             let flags = EnterFlags::EXT_ARG | EnterFlags::GETEVENTS | EnterFlags::NO_IOWAIT;
-            // SAFETY: `args` outlives the call; the SQ is synced and holds
-            // `to_submit` valid SQEs.
+
             unsafe { submitter.enter(to_submit, want_sqe as u32, flags.bits(), Some(&args)) }
         } else {
             #[repr(C)] //libc::sigset_t
@@ -225,8 +222,7 @@ impl Driver {
             }
 
             let flags = EnterFlags::GETEVENTS | EnterFlags::NO_IOWAIT;
-            // SAFETY: the SQ is synced and holds `to_submit` valid SQEs; no arg
-            // payload is referenced.
+
             unsafe { submitter.enter::<sigset_t>(to_submit, want_sqe as u32, flags.bits(), None) }
         }
     }
@@ -262,7 +258,7 @@ impl Driver {
     fn push_raw_with_key(&mut self, entry: SEntry, key: ErasedKey) -> io::Result<()> {
         let user_data = key.as_raw();
         let entry = entry.user_data(user_data as _);
-        self.push_raw(entry)?; // if push failed, do not leak the key. Drop it upon return.
+        self.push_raw(entry)?;
 
         let slot = self.in_flight.insert(user_data);
         key.borrow().extra_mut().set_in_flight(slot);
@@ -365,7 +361,6 @@ fn create_result(result: i32) -> io::Result<usize> {
     const ERR_ENOBUFS: i32 = -105;
 
     if result < 0 {
-        // ENOBUFS indicates the io_uring buffer pool has no available buffer.
         if result == ERR_ENOBUFS {
             Err(io::Error::new(
                 io::ErrorKind::ResourceBusy,

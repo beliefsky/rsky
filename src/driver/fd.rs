@@ -32,17 +32,15 @@ impl<T> SharedFd<T> {
 
     fn into_inner(self) -> Arc<Inner<T>> {
         let this = ManuallyDrop::new(self);
-        // SAFETY: `this` is not dropped here.
+
         unsafe { ptr::read(&this.0) }
     }
 
-    /// Try to take the inner owned fd.
     pub fn try_unwrap(self) -> Result<T, Self> {
         let inner = self.into_inner();
         Arc::try_unwrap(inner).map(|t| t.fd).map_err(|i| Self(i))
     }
 
-    /// Wait and take the inner owned fd.
     pub fn take(self) -> impl Future<Output = Option<T>> {
         let inner = self.into_inner();
 
@@ -144,37 +142,32 @@ impl AtomicWaker {
             )
             .unwrap_or_else(|x| x)
         {
-            Self::WAITING => {
-                unsafe {
-                    // Locked acquired, update the waker cell
+            Self::WAITING => unsafe {
+                match &*self.waker.get() {
+                    Some(old_waker) if old_waker.will_wake(waker) => (),
+                    _ => *self.waker.get() = Some(waker.clone()),
+                }
 
-                    // Avoid cloning the waker if the old waker will awaken the same task.
-                    match &*self.waker.get() {
-                        Some(old_waker) if old_waker.will_wake(waker) => (),
-                        _ => *self.waker.get() = Some(waker.clone()),
-                    }
+                let res = self.state.compare_exchange(
+                    Self::REGISTERING,
+                    Self::WAITING,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                );
 
-                    let res = self.state.compare_exchange(
-                        Self::REGISTERING,
-                        Self::WAITING,
-                        Ordering::AcqRel,
-                        Ordering::Acquire,
-                    );
+                match res {
+                    Ok(_) => {}
+                    Err(actual) => {
+                        debug_assert_eq!(actual, Self::REGISTERING | Self::WAKING);
 
-                    match res {
-                        Ok(_) => {}
-                        Err(actual) => {
-                            debug_assert_eq!(actual, Self::REGISTERING | Self::WAKING);
+                        let waker = (*self.waker.get()).take().unwrap();
 
-                            let waker = (*self.waker.get()).take().unwrap();
+                        self.state.swap(Self::WAITING, Ordering::AcqRel);
 
-                            self.state.swap(Self::WAITING, Ordering::AcqRel);
-
-                            waker.wake();
-                        }
+                        waker.wake();
                     }
                 }
-            }
+            },
 
             Self::WAKING => {
                 waker.wake_by_ref();

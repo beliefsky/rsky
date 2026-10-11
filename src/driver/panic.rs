@@ -8,7 +8,6 @@ use std::{
 
 pub(crate) struct Panic(Box<dyn Any + Send>);
 
-// Panic is unconditionally `Sync`
 unsafe impl Sync for Panic {}
 
 impl Display for Panic {
