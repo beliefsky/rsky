@@ -13,19 +13,22 @@ pub struct SockAddr {
 }
 
 impl SockAddr {
+    #[inline]
     pub fn family(&self) -> AddressFamily {
         AddressFamily::from_raw(self.storage.ss_family)
     }
 
+    #[inline]
     pub fn len(&self) -> sys::Socklen {
         self.len
     }
 
-    /// Returns a raw pointer to the address.
+    #[inline]
     pub fn as_ptr<T>(&self) -> *const T {
         &self.storage as *const sys::sockaddr_storage as _
     }
 
+    #[inline]
     pub fn as_ptr_len_mut<T>(&mut self) -> (*mut T, *mut sys::Socklen) {
         (
             &mut self.storage as *mut sys::sockaddr_storage as _,

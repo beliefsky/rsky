@@ -43,6 +43,7 @@ impl Shutdown {
     pub const WRITE: Self = Self(sys::SHUT_WR);
     pub const BOTH: Self = Self(sys::SHUT_RDWR);
 
+    #[inline]
     pub fn how(&self) -> i32 {
         self.0
     }
