@@ -213,7 +213,11 @@ impl Default for RecvVectoredControl {
 
 impl<T: IoVectoredBufMut, S> RecvVectored<T, S> {
     pub(crate) fn init_control(&mut self, ctrl: &mut RecvVectoredControl) {
-        ctrl.slices = self.buffer.iter_slice().map(IoVec::from_slice).collect();
+        ctrl.slices = self
+            .buffer
+            .iter_uninit_slice()
+            .map(IoVec::from_uninit)
+            .collect();
         ctrl.msg.set_mut_vec(ctrl.slices.as_mut_slice());
     }
 }

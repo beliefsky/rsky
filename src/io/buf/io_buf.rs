@@ -68,7 +68,7 @@ impl IoBuf for Vec<u8> {
 
 const _: [&dyn IoBufMut; 0] = [];
 
-pub trait IoBufMut: IoBuf {
+pub trait IoBufMut: 'static {
     fn as_uninit(&mut self) -> &mut [MaybeUninit<u8>];
 }
 

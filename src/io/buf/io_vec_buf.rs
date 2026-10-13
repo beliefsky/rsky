@@ -33,7 +33,7 @@ impl<T: IoBuf> IoVectoredBuf for Vec<T> {
     }
 }
 
-pub trait IoVectoredBufMut: IoVectoredBuf {
+pub trait IoVectoredBufMut: 'static {
     fn iter_uninit_slice(&mut self) -> impl Iterator<Item = &mut [MaybeUninit<u8>]>;
 
     fn total_capacity(&mut self) -> usize {
