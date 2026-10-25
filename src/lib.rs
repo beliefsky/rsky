@@ -1,3 +1,5 @@
+extern crate alloc;
+
 pub mod driver;
 pub mod io;
 pub mod net;

@@ -1,10 +1,11 @@
-use std::{
+use core::{
     hash::Hash,
-    io, mem,
+    mem,
     ops::{Deref, DerefMut},
     ptr,
     task::Waker,
 };
+use std::io;
 
 use thin_cell::unsync::{Inner, Ref, ThinCell, Weak};
 

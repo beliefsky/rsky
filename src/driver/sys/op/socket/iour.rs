@@ -118,7 +118,7 @@ unsafe impl<T: IoBufMut, S: AsFd> OpCode for Recv<T, S> {
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
-        let slice = self.buffer.as_uninit();
+        let slice = self.buffer.spare_mut();
 
         opcode::Recv::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
@@ -135,7 +135,7 @@ unsafe impl<T: IoBuf, S: AsFd> OpCode for Send<T, S> {
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
-        let slice = self.buffer.as_init();
+        let slice = self.buffer.data_pos();
         opcode::Send::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
             slice.as_ptr(),
