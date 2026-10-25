@@ -706,6 +706,9 @@ impl BytesMut {
     }
 }
 
+unsafe impl Send for BytesMut {}
+unsafe impl Sync for BytesMut {}
+
 impl Default for BytesMut {
     #[inline]
     fn default() -> BytesMut {
