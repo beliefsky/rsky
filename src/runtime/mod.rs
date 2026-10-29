@@ -1,11 +1,14 @@
-use std::{
+use alloc::rc::Rc;
+use core::{
     cell::RefCell,
-    io,
-    os::fd::RawFd,
-    panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
-    rc::Rc,
+    panic::AssertUnwindSafe,
     task::{Context, Poll, Waker},
     time::Duration,
+};
+use std::{
+    io,
+    os::fd::RawFd,
+    panic::{catch_unwind, resume_unwind},
 };
 
 use crate::{

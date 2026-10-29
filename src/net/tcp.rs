@@ -3,7 +3,9 @@ use std::io;
 use crate::{
     io::{AsyncRead, AsyncWrite, BufResult, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
     net::Socket,
-    os::net::{Protocol, RecvFlags, SendFlags, Shutdown, SockAddr, SocketType},
+    os::net::{
+        Protocol, RecvFlags, SendFlags, Shutdown, SockAddrArgs, SockAddrArgsMut, SocketType,
+    },
 };
 
 #[derive(Clone)]
@@ -12,8 +14,13 @@ pub struct TcpListener {
 }
 
 impl TcpListener {
-    pub async fn bind(addr: SockAddr) -> io::Result<Self> {
-        let socket = Socket::new(addr.family(), SocketType::STREAM, Some(Protocol::TCP)).await?;
+    pub async fn bind<A: SockAddrArgs>(addr: A) -> io::Result<Self> {
+        let socket = Socket::new(
+            addr.addr_ref().family(),
+            SocketType::STREAM,
+            Some(Protocol::TCP),
+        )
+        .await?;
 
         if let Err(e) = Self::bind_with_opt(&socket, addr).await {
             let _ = socket.close().await;
@@ -24,8 +31,8 @@ impl TcpListener {
     }
 
     #[inline(always)]
-    pub async fn accept(&self) -> io::Result<(TcpStream, SockAddr)> {
-        let (socket, addr) = self.inner.accept().await?;
+    pub async fn accept<A: SockAddrArgsMut>(&self, addr: A) -> io::Result<(TcpStream, A)> {
+        let (socket, addr) = self.inner.accept(addr).await?;
         Ok((TcpStream { inner: socket }, addr))
     }
 
@@ -34,7 +41,7 @@ impl TcpListener {
         self.inner.close()
     }
 
-    async fn bind_with_opt(socket: &Socket, addr: SockAddr) -> io::Result<()> {
+    async fn bind_with_opt<A: SockAddrArgs>(socket: &Socket, addr: A) -> io::Result<()> {
         // 待处理配置, set_reuse_address
 
         socket.bind(addr).await?;
@@ -48,8 +55,13 @@ pub struct TcpStream {
 }
 
 impl TcpStream {
-    pub async fn connect(addr: SockAddr) -> io::Result<Self> {
-        let socket = Socket::new(addr.family(), SocketType::STREAM, Some(Protocol::TCP)).await?;
+    pub async fn connect<A: SockAddrArgs>(addr: A) -> io::Result<Self> {
+        let socket = Socket::new(
+            addr.addr_ref().family(),
+            SocketType::STREAM,
+            Some(Protocol::TCP),
+        )
+        .await?;
 
         if let Err(e) = socket.connect(addr).await {
             let _ = socket.close().await;

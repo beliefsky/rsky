@@ -1,12 +1,12 @@
 use super::SendWrapper;
-use crossbeam_queue::SegQueue;
-use queue::{TaskId, TaskQueue};
-use std::{
+use core::{
     any::Any,
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
     task::Waker,
 };
+use crossbeam_queue::SegQueue;
+use queue::{TaskId, TaskQueue};
 
 pub mod console;
 mod join_handle;

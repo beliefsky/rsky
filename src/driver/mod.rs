@@ -1,9 +1,8 @@
-use std::{
-    io,
-    os::fd::RawFd,
+use core::{
     task::{Poll, Waker},
     time::Duration,
 };
+use std::{io, os::fd::RawFd};
 
 mod control;
 mod panic;

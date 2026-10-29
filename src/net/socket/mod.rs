@@ -9,7 +9,10 @@ use crate::{
         },
     },
     io::{BufResult, IntoInner, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
-    os::net::{AddressFamily, Protocol, RecvFlags, SendFlags, Shutdown, SockAddr, SocketType},
+    os::net::{
+        AddressFamily, Protocol, RecvFlags, SendFlags, Shutdown, SockAddrArgs, SockAddrArgsMut,
+        SocketType,
+    },
     runtime::{self, Attacher},
 };
 
@@ -37,7 +40,7 @@ impl Socket {
         Self::from_fd(op.into_inner())
     }
 
-    pub async fn bind(&self, addr: SockAddr) -> io::Result<()> {
+    pub async fn bind<A: SockAddrArgs>(&self, addr: A) -> io::Result<()> {
         runtime::submit(Bind::new(self.shared_fd(), addr))
             .await
             .into_res()
@@ -51,15 +54,17 @@ impl Socket {
             .map(|_| ())
     }
 
-    pub async fn connect(&self, addr: SockAddr) -> io::Result<()> {
+    pub async fn connect<A: SockAddrArgs>(&self, addr: A) -> io::Result<()> {
         runtime::submit(Connect::new(self.shared_fd(), addr))
             .await
             .into_res()
             .map(|_| ())
     }
 
-    pub async fn accept(&self) -> io::Result<(Self, SockAddr)> {
-        let (res, op) = runtime::submit(Accept::new(self.shared_fd())).await.into();
+    pub async fn accept<A: SockAddrArgsMut>(&self, addr: A) -> io::Result<(Self, A)> {
+        let (res, op) = runtime::submit(Accept::new(self.shared_fd(), addr))
+            .await
+            .into();
         res?;
         let (accept_fd, addr) = op.into_inner();
         Ok((Self::from_fd(accept_fd)?, addr))

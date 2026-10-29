@@ -12,7 +12,7 @@ use super::{
 use crate::{
     driver::{Extra, OpCode, OpEntry},
     io::{IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
-    os::net,
+    os::net::{self, SockAddrArgs, SockAddrArgsMut},
 };
 
 unsafe impl OpCode for CreateSocket {
@@ -36,21 +36,29 @@ unsafe impl OpCode for CreateSocket {
     }
 }
 
-unsafe impl<S: AsFd> OpCode for Bind<S> {
+unsafe impl<F, A> OpCode for Bind<F, A>
+where
+    F: AsFd,
+    A: SockAddrArgs,
+{
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+        let addr = self.addr.addr_ref();
         opcode::Bind::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
-            self.addr.as_ptr(),
-            self.addr.len(),
+            addr.as_ptr(),
+            addr.len(),
         )
         .build()
         .into()
     }
 }
 
-unsafe impl<S: AsFd> OpCode for Listen<S> {
+unsafe impl<F> OpCode for Listen<F>
+where
+    F: AsFd,
+{
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
@@ -60,11 +68,17 @@ unsafe impl<S: AsFd> OpCode for Listen<S> {
     }
 }
 
-unsafe impl<S: AsFd> OpCode for Accept<S> {
+unsafe impl<F, A> OpCode for Accept<F, A>
+where
+    F: AsFd,
+    A: SockAddrArgsMut,
+{
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
-        let (addr_ptr, len_ptr) = self.addr.as_ptr_len_mut();
+        let addr = unsafe { self.addr.addr_mut().assume_init_mut() };
+        addr.reset_len();
+        let (addr_ptr, len_ptr) = addr.as_mut_ptr_len();
 
         let entry = opcode::Accept::new(types::Fd(self.fd.as_fd().as_raw_fd()), addr_ptr, len_ptr)
             .flags(net::SOCK_CLOEXEC)
@@ -80,21 +94,29 @@ unsafe impl<S: AsFd> OpCode for Accept<S> {
     }
 }
 
-unsafe impl<S: AsFd> OpCode for Connect<S> {
+unsafe impl<F, A> OpCode for Connect<F, A>
+where
+    F: AsFd,
+    A: SockAddrArgs,
+{
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+        let addr = self.addr.addr_ref();
         opcode::Connect::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
-            self.addr.as_ptr(),
-            self.addr.len(),
+            addr.as_ptr(),
+            addr.len(),
         )
         .build()
         .into()
     }
 }
 
-unsafe impl<S: AsFd> OpCode for ShutdownSocket<S> {
+unsafe impl<F> OpCode for ShutdownSocket<F>
+where
+    F: AsFd,
+{
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
@@ -114,7 +136,11 @@ unsafe impl OpCode for CloseSocket {
     }
 }
 
-unsafe impl<T: IoBufMut, S: AsFd> OpCode for Recv<T, S> {
+unsafe impl<F, B> OpCode for Recv<F, B>
+where
+    F: AsFd,
+    B: IoBufMut,
+{
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
@@ -131,7 +157,11 @@ unsafe impl<T: IoBufMut, S: AsFd> OpCode for Recv<T, S> {
     }
 }
 
-unsafe impl<T: IoBuf, S: AsFd> OpCode for Send<T, S> {
+unsafe impl<F, B> OpCode for Send<F, B>
+where
+    F: AsFd,
+    B: IoBuf,
+{
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
@@ -147,7 +177,11 @@ unsafe impl<T: IoBuf, S: AsFd> OpCode for Send<T, S> {
     }
 }
 
-unsafe impl<T: IoVectoredBufMut, S: AsFd> OpCode for RecvVectored<T, S> {
+unsafe impl<F, B> OpCode for RecvVectored<F, B>
+where
+    F: AsFd,
+    B: IoVectoredBufMut,
+{
     type Control = RecvVectoredControl;
 
     unsafe fn init(&mut self, ctrl: &mut Self::Control) {
@@ -165,7 +199,11 @@ unsafe impl<T: IoVectoredBufMut, S: AsFd> OpCode for RecvVectored<T, S> {
     }
 }
 
-unsafe impl<T: IoVectoredBuf, S: AsFd> OpCode for SendVectored<T, S> {
+unsafe impl<F, B> OpCode for SendVectored<F, B>
+where
+    F: AsFd,
+    B: IoVectoredBuf,
+{
     type Control = SendVectoredControl;
 
     unsafe fn init(&mut self, ctrl: &mut Self::Control) {

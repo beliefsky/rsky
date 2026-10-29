@@ -1,8 +1,6 @@
-use std::{
-    io,
-    sync::Arc,
-    task::{Wake, Waker},
-};
+use alloc::{sync::Arc, task::Wake};
+use core::task::Waker;
+use std::io;
 
 use crate::driver::sys::driver::AwakeFlag;
 

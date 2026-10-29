@@ -1,17 +1,15 @@
-use std::{
+use alloc::sync::Arc;
+use core::{
     cell::UnsafeCell,
     future::poll_fn,
     mem::ManuallyDrop,
     ops::Deref,
-    os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd},
     panic::RefUnwindSafe,
     ptr,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-    },
+    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     task::{Poll, Waker},
 };
+use std::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
 
 pub struct SharedFd<T>(Arc<Inner<T>>);
 
