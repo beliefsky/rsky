@@ -15,12 +15,8 @@ pub struct TcpListener {
 
 impl TcpListener {
     pub async fn bind<A: SockAddrArgs>(addr: A) -> io::Result<Self> {
-        let socket = Socket::new(
-            addr.addr_ref().family(),
-            SocketType::STREAM,
-            Some(Protocol::TCP),
-        )
-        .await?;
+        let socket =
+            Socket::new(addr.addr_family(), SocketType::STREAM, Some(Protocol::TCP)).await?;
 
         if let Err(e) = Self::bind_with_opt(&socket, addr).await {
             let _ = socket.close().await;
@@ -56,12 +52,8 @@ pub struct TcpStream {
 
 impl TcpStream {
     pub async fn connect<A: SockAddrArgs>(addr: A) -> io::Result<Self> {
-        let socket = Socket::new(
-            addr.addr_ref().family(),
-            SocketType::STREAM,
-            Some(Protocol::TCP),
-        )
-        .await?;
+        let socket =
+            Socket::new(addr.addr_family(), SocketType::STREAM, Some(Protocol::TCP)).await?;
 
         if let Err(e) = socket.connect(addr).await {
             let _ = socket.close().await;

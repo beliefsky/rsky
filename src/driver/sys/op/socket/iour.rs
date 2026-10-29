@@ -44,11 +44,11 @@ where
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
-        let addr = self.addr.addr_ref();
+        let (addr_ptr, addr_len) = self.addr.addr_len_ptr();
         opcode::Bind::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
-            addr.as_ptr(),
-            addr.len(),
+            addr_ptr as _,
+            addr_len,
         )
         .build()
         .into()
@@ -76,13 +76,15 @@ where
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
-        let addr = unsafe { self.addr.addr_mut().assume_init_mut() };
-        addr.reset_len();
-        let (addr_ptr, len_ptr) = addr.as_mut_ptr_len();
+        let (addr_ptr, len_ptr) = self.addr.addr_reset_len_mut_ptr();
 
-        let entry = opcode::Accept::new(types::Fd(self.fd.as_fd().as_raw_fd()), addr_ptr, len_ptr)
-            .flags(net::SOCK_CLOEXEC)
-            .build();
+        let entry = opcode::Accept::new(
+            types::Fd(self.fd.as_fd().as_raw_fd()),
+            addr_ptr as _,
+            len_ptr,
+        )
+        .flags(net::SOCK_CLOEXEC)
+        .build();
         entry.into()
     }
 
@@ -102,11 +104,11 @@ where
     type Control = ();
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
-        let addr = self.addr.addr_ref();
+        let (addr_ptr, addr_len) = self.addr.addr_len_ptr();
         opcode::Connect::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
-            addr.as_ptr(),
-            addr.len(),
+            addr_ptr as _,
+            addr_len,
         )
         .build()
         .into()

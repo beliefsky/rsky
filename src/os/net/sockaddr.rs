@@ -49,23 +49,20 @@ impl SockAddr {
         Some(addr)
     }
 
-    pub(crate) fn reset_len(&mut self) {
-        self.len = mem::size_of::<sys::sockaddr_storage>() as _;
-    }
-
-    #[inline]
-    pub(crate) fn as_ptr<T>(&self) -> *const T {
+    fn as_ptr<T>(&self) -> *const T {
         &self.storage as *const sys::sockaddr_storage as _
     }
 
     #[inline]
-    pub(crate) fn as_mut_ptr<T>(&mut self) -> *mut T {
-        &mut self.storage as *mut sys::sockaddr_storage as _
+    fn as_len_ptr(&self) -> (*const u8, sys::Socklen) {
+        (self.as_ptr(), self.len)
     }
 
     #[inline]
-    pub(crate) fn as_mut_ptr_len<T>(&mut self) -> (*mut T, *mut sys::Socklen) {
-        (self.as_mut_ptr(), &mut self.len)
+    fn reset_len_mut_ptr(&mut self) -> (*mut u8, *mut sys::Socklen) {
+        self.len = mem::size_of::<sys::sockaddr_storage>() as _;
+        let addr = &mut self.storage as *mut sys::sockaddr_storage as _;
+        (addr, &mut self.len)
     }
 }
 
@@ -121,47 +118,74 @@ impl From<SocketAddrV6> for SockAddr {
     }
 }
 
-// trait SockAddrArgs
-pub trait SockAddrArgs: 'static {
-    fn addr_ref(&self) -> &SockAddr;
+pub struct EmptySockAddr();
+
+impl EmptySockAddr {
+    pub fn new() -> Self {
+        Self()
+    }
 }
 
-impl<T: AsRef<dyn SockAddrArgs> + 'static> SockAddrArgs for T {
+// trait SockAddrArgs
+pub trait SockAddrArgs: 'static {
+    fn addr_family(&self) -> AddressFamily;
+
+    fn addr_len_ptr(&self) -> (*const u8, sys::Socklen);
+}
+
+impl<A: AsRef<dyn SockAddrArgs> + 'static> SockAddrArgs for A {
     #[inline]
-    fn addr_ref(&self) -> &SockAddr {
-        self.as_ref().addr_ref()
+    fn addr_family(&self) -> AddressFamily {
+        self.as_ref().addr_family()
+    }
+
+    #[inline]
+    fn addr_len_ptr(&self) -> (*const u8, sys::Socklen) {
+        self.as_ref().addr_len_ptr()
     }
 }
 
 impl SockAddrArgs for SockAddr {
     #[inline]
-    fn addr_ref(&self) -> &SockAddr {
-        self
+    fn addr_family(&self) -> AddressFamily {
+        self.family()
+    }
+
+    #[inline]
+    fn addr_len_ptr(&self) -> (*const u8, sys::Socklen) {
+        self.as_len_ptr()
     }
 }
 
 // trait SockAddrArgsMut
 pub trait SockAddrArgsMut: 'static {
-    fn addr_mut(&mut self) -> &mut MaybeUninit<SockAddr>;
+    fn addr_reset_len_mut_ptr(&mut self) -> (*mut u8, *mut sys::Socklen);
 }
 
 impl<T: AsMut<dyn SockAddrArgsMut> + 'static> SockAddrArgsMut for T {
     #[inline]
-    fn addr_mut(&mut self) -> &mut MaybeUninit<SockAddr> {
-        self.as_mut().addr_mut()
+    fn addr_reset_len_mut_ptr(&mut self) -> (*mut u8, *mut sys::Socklen) {
+        self.as_mut().addr_reset_len_mut_ptr()
     }
 }
 
 impl SockAddrArgsMut for SockAddr {
     #[inline]
-    fn addr_mut(&mut self) -> &mut MaybeUninit<SockAddr> {
-        unsafe { &mut *(self as *mut SockAddr as *mut MaybeUninit<SockAddr>) }
+    fn addr_reset_len_mut_ptr(&mut self) -> (*mut u8, *mut sys::Socklen) {
+        self.reset_len_mut_ptr()
+    }
+}
+impl SockAddrArgsMut for MaybeUninit<SockAddr> {
+    #[inline]
+    fn addr_reset_len_mut_ptr(&mut self) -> (*mut u8, *mut sys::Socklen) {
+        let addr = unsafe { self.assume_init_mut() };
+        addr.reset_len_mut_ptr()
     }
 }
 
-impl SockAddrArgsMut for MaybeUninit<SockAddr> {
+impl SockAddrArgsMut for EmptySockAddr {
     #[inline]
-    fn addr_mut(&mut self) -> &mut MaybeUninit<SockAddr> {
-        self
+    fn addr_reset_len_mut_ptr(&mut self) -> (*mut u8, *mut sys::Socklen) {
+        (ptr::null_mut(), ptr::null_mut())
     }
 }
