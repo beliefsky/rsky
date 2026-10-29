@@ -1,6 +1,6 @@
+use core::ops::Deref;
 use std::{
     io,
-    ops::Deref,
     os::fd::{AsFd, AsRawFd},
 };
 

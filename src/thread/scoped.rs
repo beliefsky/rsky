@@ -1,4 +1,5 @@
-use std::{cell::Cell, marker, thread::LocalKey};
+use core::{cell::Cell, marker};
+use std::thread::LocalKey;
 
 #[macro_export]
 macro_rules! scoped_thread_local {

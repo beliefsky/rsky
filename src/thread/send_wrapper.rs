@@ -1,12 +1,12 @@
-use std::{
+use core::{
     cell::Cell,
     mem::{self, ManuallyDrop},
     pin::Pin,
-    thread::ThreadId,
 };
+use std::thread::{self, ThreadId};
 
 thread_local! {
-    static THREAD_ID: Cell<ThreadId> = Cell::new(std::thread::current().id());
+    static THREAD_ID: Cell<ThreadId> = Cell::new(thread::current().id());
 }
 
 pub(crate) fn current_id() -> ThreadId {

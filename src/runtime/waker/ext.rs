@@ -1,7 +1,7 @@
-use std::{
+use alloc::sync::Arc;
+use core::{
     mem::ManuallyDrop,
     ptr,
-    sync::Arc,
     task::{RawWaker, RawWakerVTable, Waker},
 };
 

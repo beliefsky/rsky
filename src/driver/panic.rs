@@ -1,10 +1,9 @@
-use std::{
+use core::{
     any::Any,
     error::Error,
     fmt::{Debug, Display},
-    io,
-    panic::resume_unwind,
 };
+use std::{io, panic::resume_unwind};
 
 pub(crate) struct Panic(Box<dyn Any + Send>);
 

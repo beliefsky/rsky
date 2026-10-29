@@ -1,5 +1,5 @@
-use std::{
-    mem,
+use core::{
+    mem::{self, MaybeUninit},
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     ptr,
 };
@@ -21,19 +21,6 @@ impl SockAddr {
     #[inline]
     pub fn len(&self) -> sys::Socklen {
         self.len
-    }
-
-    #[inline]
-    pub fn as_ptr<T>(&self) -> *const T {
-        &self.storage as *const sys::sockaddr_storage as _
-    }
-
-    #[inline]
-    pub fn as_ptr_len_mut<T>(&mut self) -> (*mut T, *mut sys::Socklen) {
-        (
-            &mut self.storage as *mut sys::sockaddr_storage as _,
-            &mut self.len,
-        )
     }
 
     pub fn as_addr(&self) -> Option<SocketAddr> {
@@ -60,6 +47,25 @@ impl SockAddr {
             }
         };
         Some(addr)
+    }
+
+    pub(crate) fn reset_len(&mut self) {
+        self.len = mem::size_of::<sys::sockaddr_storage>() as _;
+    }
+
+    #[inline]
+    pub(crate) fn as_ptr<T>(&self) -> *const T {
+        &self.storage as *const sys::sockaddr_storage as _
+    }
+
+    #[inline]
+    pub(crate) fn as_mut_ptr<T>(&mut self) -> *mut T {
+        &mut self.storage as *mut sys::sockaddr_storage as _
+    }
+
+    #[inline]
+    pub(crate) fn as_mut_ptr_len<T>(&mut self) -> (*mut T, *mut sys::Socklen) {
+        (self.as_mut_ptr(), &mut self.len)
     }
 }
 
@@ -112,5 +118,50 @@ impl From<SocketAddrV6> for SockAddr {
             mem::size_of::<sys::sockaddr_in6>() as _
         };
         SockAddr { storage, len }
+    }
+}
+
+// trait SockAddrArgs
+pub trait SockAddrArgs: 'static {
+    fn addr_ref(&self) -> &SockAddr;
+}
+
+impl<T: AsRef<dyn SockAddrArgs> + 'static> SockAddrArgs for T {
+    #[inline]
+    fn addr_ref(&self) -> &SockAddr {
+        self.as_ref().addr_ref()
+    }
+}
+
+impl SockAddrArgs for SockAddr {
+    #[inline]
+    fn addr_ref(&self) -> &SockAddr {
+        self
+    }
+}
+
+// trait SockAddrArgsMut
+pub trait SockAddrArgsMut: 'static {
+    fn addr_mut(&mut self) -> &mut MaybeUninit<SockAddr>;
+}
+
+impl<T: AsMut<dyn SockAddrArgsMut> + 'static> SockAddrArgsMut for T {
+    #[inline]
+    fn addr_mut(&mut self) -> &mut MaybeUninit<SockAddr> {
+        self.as_mut().addr_mut()
+    }
+}
+
+impl SockAddrArgsMut for SockAddr {
+    #[inline]
+    fn addr_mut(&mut self) -> &mut MaybeUninit<SockAddr> {
+        unsafe { &mut *(self as *mut SockAddr as *mut MaybeUninit<SockAddr>) }
+    }
+}
+
+impl SockAddrArgsMut for MaybeUninit<SockAddr> {
+    #[inline]
+    fn addr_mut(&mut self) -> &mut MaybeUninit<SockAddr> {
+        self
     }
 }

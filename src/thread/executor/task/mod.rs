@@ -1,12 +1,13 @@
-use std::{
+use core::{
     array,
     mem::{ManuallyDrop, MaybeUninit, offset_of},
-    panic::{AssertUnwindSafe, catch_unwind},
+    panic::AssertUnwindSafe,
     pin::Pin,
     ptr::{self, NonNull, drop_in_place},
     sync::atomic::{AtomicPtr, Ordering::*},
     task::{Context, Poll, Waker, ready},
 };
+use std::panic::catch_unwind;
 
 use super::{
     PanicResult, SendWrapper, Shared, UnsafeCell,

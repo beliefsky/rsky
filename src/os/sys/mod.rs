@@ -4,7 +4,7 @@ mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::*;
 
-use std::mem::MaybeUninit;
+use core::mem::MaybeUninit;
 
 #[repr(transparent)]
 #[derive(Clone, Copy)]

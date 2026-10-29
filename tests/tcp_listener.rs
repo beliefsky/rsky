@@ -4,6 +4,7 @@ use rsky::os::net::Shutdown;
 use rsky::os::net::SockAddr;
 use rsky::runtime;
 use std::io;
+use std::mem::MaybeUninit;
 use std::net::SocketAddr;
 
 #[test]
@@ -80,9 +81,11 @@ async fn test_rsky_ser() -> io::Result<()> {
 
     let listener = TcpListener::bind(addr).await?;
 
+    let mut accept_addr = MaybeUninit::uninit();
     loop {
-        let (mut client, addr) = listener.accept().await?;
-        let addr = addr.as_addr().unwrap();
+        let (mut client, res_addr) = listener.accept(accept_addr).await?;
+        accept_addr = res_addr;
+        let addr = unsafe { accept_addr.assume_init_ref().as_addr().unwrap() };
         println!("------accept------> {}:{}", addr.ip(), addr.port(),);
         runtime::spawn(async move {
             if let Err(e) = test_rsky_conn(&mut client).await {

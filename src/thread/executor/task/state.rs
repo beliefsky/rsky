@@ -1,10 +1,8 @@
-use std::{
-    process::abort,
-    sync::atomic::{
-        AtomicUsize,
-        Ordering::{self, *},
-    },
+use core::sync::atomic::{
+    AtomicUsize,
+    Ordering::{self, *},
 };
+use std::process::abort;
 
 const SCHEDULED: usize = 1 << 0;
 

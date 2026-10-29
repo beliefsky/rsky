@@ -1,4 +1,4 @@
-use std::{fmt::Debug, ptr::NonNull};
+use core::{fmt::Debug, ptr::NonNull};
 
 use slotmap::{SlotMap, new_key_type};
 

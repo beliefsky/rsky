@@ -1,4 +1,4 @@
-use std::task::Poll;
+use core::task::Poll;
 
 macro_rules! panic_guard {
     () => {

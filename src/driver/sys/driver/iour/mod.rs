@@ -1,10 +1,12 @@
-use std::{
-    io,
+use core::{
     marker::PhantomData,
     mem::ManuallyDrop,
-    os::fd::{AsRawFd, RawFd},
     task::{Poll, Waker},
     time::Duration,
+};
+use std::{
+    io,
+    os::fd::{AsRawFd, RawFd},
 };
 
 mod notify;

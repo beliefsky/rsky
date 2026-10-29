@@ -1,14 +1,13 @@
-use std::{
+use core::{
     error::Error,
     fmt::Display,
-    io,
     marker::PhantomData,
     mem::ManuallyDrop,
-    panic::resume_unwind,
     pin::Pin,
     ptr,
     task::{Context, Poll},
 };
+use std::{io, panic::resume_unwind};
 
 use super::{Panic, task::Task};
 

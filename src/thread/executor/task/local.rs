@@ -1,4 +1,4 @@
-use std::{
+use core::{
     marker::PhantomData,
     mem::MaybeUninit,
     ptr::NonNull,

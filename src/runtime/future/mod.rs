@@ -1,4 +1,4 @@
-use std::task::Waker;
+use core::task::Waker;
 
 use crate::{
     driver::{Extra, Key, OpCode, Proactor, PushEntry},
