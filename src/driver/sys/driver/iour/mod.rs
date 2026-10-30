@@ -299,11 +299,10 @@ impl Driver {
     }
 
     fn remove_in_flight(in_flight: &mut SlotMap<DefaultKey, usize>, key: &ErasedKey) {
-        let Some(slot) = key.borrow().extra_mut().take_in_flight() else {
-            return;
-        };
-        let removed = in_flight.remove(slot);
-        debug_assert_eq!(removed, Some(key.as_raw()));
+        if let Some(slot) = key.borrow().extra_mut().take_in_flight() {
+            let removed = in_flight.remove(slot);
+            debug_assert_eq!(removed, Some(key.as_raw()));
+        }
     }
 }
 

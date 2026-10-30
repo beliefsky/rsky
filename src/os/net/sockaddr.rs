@@ -6,6 +6,8 @@ use core::{
 
 use super::{super::sys, AddressFamily};
 
+pub const EMPTY_SOCK_ADDR: () = ();
+
 #[derive(Clone)]
 pub struct SockAddr {
     storage: sys::sockaddr_storage,
@@ -118,14 +120,6 @@ impl From<SocketAddrV6> for SockAddr {
     }
 }
 
-pub struct EmptySockAddr();
-
-impl EmptySockAddr {
-    pub fn new() -> Self {
-        Self()
-    }
-}
-
 // trait SockAddrArgs
 pub trait SockAddrArgs: 'static {
     fn addr_family(&self) -> AddressFamily;
@@ -183,7 +177,7 @@ impl SockAddrArgsMut for MaybeUninit<SockAddr> {
     }
 }
 
-impl SockAddrArgsMut for EmptySockAddr {
+impl SockAddrArgsMut for () {
     #[inline]
     fn addr_reset_len_mut_ptr(&mut self) -> (*mut u8, *mut sys::Socklen) {
         (ptr::null_mut(), ptr::null_mut())

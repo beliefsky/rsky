@@ -2,6 +2,7 @@ use alloc::rc::Rc;
 use core::{
     cell::RefCell,
     panic::AssertUnwindSafe,
+    pin,
     task::{Context, Poll, Waker},
     time::Duration,
 };
@@ -61,7 +62,7 @@ impl Runtime {
             self.enter(|| {
                 let waker = self.waker();
                 let mut context = Context::from_waker(&waker);
-                let mut future = std::pin::pin!(future);
+                let mut future = pin::pin!(future);
                 loop {
                     if let Poll::Ready(result) = future.as_mut().poll(&mut context) {
                         self.run();

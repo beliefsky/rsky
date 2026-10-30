@@ -6,8 +6,8 @@ macro_rules! scoped_thread_local {
     ($(#[$attrs:meta])* $vis:vis static $name:ident: $ty:ty) => (
         $(#[$attrs])*
         $vis static $name: $crate::thread::ScopedKey<$ty> = unsafe {
-            ::std::thread_local!(static FOO: ::std::cell::Cell<*const ()> = const {
-                ::std::cell::Cell::new(::std::ptr::null())
+            ::std::thread_local!(static FOO: ::core::cell::Cell<*const ()> = const {
+                ::core::cell::Cell::new(::core::ptr::null())
             });
 
             $crate::thread::ScopedKey::new(&FOO)
