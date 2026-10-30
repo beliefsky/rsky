@@ -81,7 +81,7 @@ async fn test_rsky_ser() -> io::Result<()> {
     let listener = TcpListener::bind(addr).await?;
 
     // let mut accept_addr = MaybeUninit::uninit();
-    let mut accept_addr = rsky::os::net::EmptySockAddr::new();
+    let mut accept_addr = rsky::os::net::EMPTY_SOCK_ADDR;
     loop {
         let (mut client, res_addr) = listener.accept(accept_addr).await?;
         accept_addr = res_addr;

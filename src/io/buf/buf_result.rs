@@ -69,7 +69,7 @@ impl<T, B> BufResult<T, B> {
     }
 
     #[inline]
-    pub fn map_buffer<C>(self, f: impl FnOnce(B) -> C) -> BufResult<T, C> {
+    pub fn map_buf<C>(self, f: impl FnOnce(B) -> C) -> BufResult<T, C> {
         BufResult(self.0, f(self.1))
     }
 
