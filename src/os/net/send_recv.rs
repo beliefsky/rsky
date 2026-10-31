@@ -1,5 +1,4 @@
-use super::super::sys;
-use std::mem;
+use super::super::{io::IoVec, sys};
 
 pub struct RecvFlags(u32);
 
@@ -49,72 +48,29 @@ impl Shutdown {
     }
 }
 
-#[repr(transparent)]
-pub struct IoVec(sys::Iovec);
-
-impl IoVec {
-    #[inline]
-    pub fn from_slice(value: &[u8]) -> Self {
-        Self(sys::Iovec {
-            iov_base: value.as_ptr() as _,
-            iov_len: value.len() as _,
-        })
-    }
-
-    #[inline]
-    pub fn from_uninit(value: &mut [std::mem::MaybeUninit<u8>]) -> Self {
-        Self(sys::Iovec {
-            iov_base: value.as_mut_ptr() as _,
-            iov_len: value.len() as _,
-        })
-    }
-
-    #[inline]
-    pub fn ptr(&self) -> *mut std::mem::MaybeUninit<u8> {
-        return self.0.iov_base as *mut std::mem::MaybeUninit<u8>;
-    }
-
-    #[inline]
-    pub fn len(&self) -> usize {
-        return self.0.iov_len;
-    }
+pub struct MsgHdr {
+    _inner: sys::MsgHdr,
 }
-
-impl Default for IoVec {
-    fn default() -> Self {
-        Self(unsafe { mem::zeroed() })
-    }
-}
-
-#[repr(transparent)]
-pub struct MsgHdr(sys::Msghdr);
 
 impl MsgHdr {
-    #[inline]
-    pub fn set_vec(&mut self, value: &[IoVec]) {
-        self.0.msg_iov = value.as_ptr() as _;
-        self.0.msg_iovlen = value.len();
+    pub unsafe fn from_vec_ref(iovec: &[IoVec]) -> Self {
+        let iovec = unsafe { &*(iovec as *const [IoVec] as *const [sys::IoVec]) };
+        MsgHdr {
+            _inner: unsafe { sys::MsgHdr::from_vec_ref(iovec) },
+        }
     }
 
-    #[inline]
-    pub fn set_mut_vec(&mut self, value: &mut [IoVec]) {
-        self.0.msg_iov = value.as_mut_ptr() as _;
-        self.0.msg_iovlen = value.len();
+    pub unsafe fn from_vec_mut(iovec: &mut [IoVec]) -> Self {
+        let iovec = unsafe { &mut *(iovec as *mut [IoVec] as *mut [sys::IoVec]) };
+        MsgHdr {
+            _inner: unsafe { sys::MsgHdr::from_vec_mut(iovec) },
+        }
     }
 
-    #[inline]
-    pub fn as_ptr<T>(&self) -> *const T {
-        &self.0 as *const sys::Msghdr as _
+    pub fn as_ptr(&self) -> *const MsgHdr {
+        self as _
     }
-
-    #[inline]
-    pub fn as_mut_ptr<T>(&mut self) -> *mut T {
-        &mut self.0 as *mut sys::Msghdr as _
-    }
-}
-
-impl Default for MsgHdr {
-    fn default() -> Self {
-        Self(unsafe { mem::zeroed() })
+    pub fn as_ptr_mut(&mut self) -> *mut MsgHdr {
+        self as _
     }
 }

@@ -1,60 +1,60 @@
-use super::{IoBuf, IoBufMut};
-use core::mem::MaybeUninit;
+use super::super::IoVecArray;
+use crate::os::io::IoVec;
+use alloc::{rc::Rc, sync::Arc};
 
 pub trait IoVectoredBuf: 'static {
-    fn iter_pos_slice(&self) -> impl Iterator<Item = &[u8]>;
+    fn data_pos(&self) -> &[IoVec];
+}
 
-    fn pos_len(&self) -> usize {
-        self.iter_pos_slice().map(|buf| buf.len()).sum()
+impl<B: IoVectoredBuf + ?Sized> IoVectoredBuf for &'static B {
+    #[inline]
+    fn data_pos(&self) -> &[IoVec] {
+        (**self).data_pos()
     }
 }
 
-impl<T: IoBuf> IoVectoredBuf for &'static [T] {
-    fn iter_pos_slice(&self) -> impl Iterator<Item = &[u8]> {
-        self.iter().map(|buf| buf.data_pos())
+impl<B: IoVectoredBuf + ?Sized> IoVectoredBuf for &'static mut B {
+    #[inline]
+    fn data_pos(&self) -> &[IoVec] {
+        (**self).data_pos()
     }
 }
 
-impl<T: IoBuf> IoVectoredBuf for &'static mut [T] {
-    fn iter_pos_slice(&self) -> impl Iterator<Item = &[u8]> {
-        self.iter().map(|buf| buf.data_pos())
+impl<B: IoVectoredBuf + ?Sized + 'static> IoVectoredBuf for Box<B> {
+    #[inline]
+    fn data_pos(&self) -> &[IoVec] {
+        (**self).data_pos()
     }
 }
 
-impl<T: IoBuf, const N: usize> IoVectoredBuf for [T; N] {
-    fn iter_pos_slice(&self) -> impl Iterator<Item = &[u8]> {
-        self.iter().map(|buf| buf.data_pos())
+impl<B: IoVectoredBuf + ?Sized + 'static> IoVectoredBuf for Rc<B> {
+    #[inline]
+    fn data_pos(&self) -> &[IoVec] {
+        (**self).data_pos()
     }
 }
 
-impl<T: IoBuf> IoVectoredBuf for Vec<T> {
-    fn iter_pos_slice(&self) -> impl Iterator<Item = &[u8]> {
-        self.iter().map(|buf| buf.data_pos())
+impl<B: IoVectoredBuf + ?Sized + 'static> IoVectoredBuf for Arc<B> {
+    #[inline]
+    fn data_pos(&self) -> &[IoVec] {
+        (**self).data_pos()
+    }
+}
+
+impl<E: 'static, const N: usize> IoVectoredBuf for IoVecArray<E, N> {
+    #[inline]
+    fn data_pos(&self) -> &[IoVec] {
+        self.vec_slice()
     }
 }
 
 pub trait IoVectoredBufMut: 'static {
-    fn iter_spare_slice(&mut self) -> impl Iterator<Item = &mut [MaybeUninit<u8>]>;
-
-    fn spare_len(&mut self) -> usize {
-        self.iter_spare_slice().map(|buf| buf.len()).sum()
-    }
+    fn spare_mut(&mut self) -> &mut [IoVec];
 }
 
-impl<T: IoBufMut> IoVectoredBufMut for &'static mut [T] {
-    fn iter_spare_slice(&mut self) -> impl Iterator<Item = &mut [MaybeUninit<u8>]> {
-        self.iter_mut().map(|buf| buf.spare_mut())
-    }
-}
-
-impl<T: IoBufMut, const N: usize> IoVectoredBufMut for [T; N] {
-    fn iter_spare_slice(&mut self) -> impl Iterator<Item = &mut [MaybeUninit<u8>]> {
-        self.iter_mut().map(|buf| buf.spare_mut())
-    }
-}
-
-impl<T: IoBufMut> IoVectoredBufMut for Vec<T> {
-    fn iter_spare_slice(&mut self) -> impl Iterator<Item = &mut [MaybeUninit<u8>]> {
-        self.iter_mut().map(|buf| buf.spare_mut())
+impl<B: IoVectoredBufMut + ?Sized + 'static> IoVectoredBufMut for Box<B> {
+    #[inline]
+    fn spare_mut(&mut self) -> &mut [IoVec] {
+        (**self).spare_mut()
     }
 }

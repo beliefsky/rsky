@@ -1,3 +1,4 @@
+use alloc::{rc::Rc, sync::Arc};
 use core::{mem::MaybeUninit, slice};
 
 const _: [&dyn IoBuf; 0] = [];
@@ -6,10 +7,38 @@ pub trait IoBuf: 'static {
     fn data_pos(&self) -> &[u8];
 }
 
-impl<B: AsRef<dyn IoBuf> + ?Sized + 'static> IoBuf for B {
+impl<B: IoBuf + ?Sized> IoBuf for &'static B {
     #[inline]
     fn data_pos(&self) -> &[u8] {
-        self.as_ref().data_pos()
+        (**self).data_pos()
+    }
+}
+
+impl<B: IoBuf + ?Sized> IoBuf for &'static mut B {
+    #[inline]
+    fn data_pos(&self) -> &[u8] {
+        (**self).data_pos()
+    }
+}
+
+impl<B: IoBuf + ?Sized + 'static> IoBuf for Box<B> {
+    #[inline]
+    fn data_pos(&self) -> &[u8] {
+        (**self).data_pos()
+    }
+}
+
+impl<B: IoBuf + ?Sized + 'static> IoBuf for Rc<B> {
+    #[inline]
+    fn data_pos(&self) -> &[u8] {
+        (**self).data_pos()
+    }
+}
+
+impl<B: IoBuf + ?Sized + 'static> IoBuf for Arc<B> {
+    #[inline]
+    fn data_pos(&self) -> &[u8] {
+        (**self).data_pos()
     }
 }
 
@@ -68,10 +97,17 @@ pub trait IoBufMut: 'static {
     fn spare_mut(&mut self) -> &mut [MaybeUninit<u8>];
 }
 
-impl<B: AsMut<dyn IoBufMut> + ?Sized + 'static> IoBufMut for B {
+impl<B: IoBufMut + ?Sized> IoBufMut for &'static mut B {
     #[inline]
     fn spare_mut(&mut self) -> &mut [MaybeUninit<u8>] {
-        self.as_mut().spare_mut()
+        (**self).spare_mut()
+    }
+}
+
+impl<B: IoBufMut + ?Sized + 'static> IoBufMut for Box<B> {
+    #[inline]
+    fn spare_mut(&mut self) -> &mut [MaybeUninit<u8>] {
+        (**self).spare_mut()
     }
 }
 

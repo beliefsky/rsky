@@ -29,15 +29,10 @@ impl From<SEntry> for OpEntry {
 }
 
 pub unsafe trait OpCode {
-    type Control: Default;
-
-    /// 初始化控件
-    unsafe fn init(&mut self, _: &mut Self::Control) {}
-
     /// Create submission entry.
-    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry;
+    fn create_entry(&mut self) -> OpEntry;
 
-    unsafe fn set_result(&mut self, _: &mut Self::Control, _: &io::Result<usize>, _: &Extra) {}
+    unsafe fn set_result(&mut self, _: &io::Result<usize>, _: &Extra) {}
 }
 
 pub(crate) trait Carry {
@@ -50,12 +45,10 @@ pub(crate) trait Carry {
 
 impl<T: OpCode> Carry for Carrier<T> {
     fn create_entry(&mut self) -> OpEntry {
-        let (op, control) = (&mut self.op, &mut self.control);
-        op.create_entry(control)
+        self.op.create_entry()
     }
 
     unsafe fn set_result(&mut self, result: &io::Result<usize>, extra: &Extra) {
-        let (op, control) = (&mut self.op, &mut self.control);
-        unsafe { OpCode::set_result(op, control, result, extra) }
+        unsafe { OpCode::set_result(&mut self.op, result, extra) }
     }
 }
