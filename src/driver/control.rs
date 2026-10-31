@@ -1,20 +1,12 @@
 use crate::{driver::OpCode, io::IntoInner};
 
-type ControlInner<T> = <T as OpCode>::Control;
-
 pub(crate) struct Carrier<T: OpCode + ?Sized> {
-    pub(crate) control: ControlInner<T>,
     pub(crate) op: T,
 }
 
 impl<T: OpCode> Carrier<T> {
     pub fn new(op: T) -> Self {
-        let control = T::Control::default();
-        Self { control, op }
-    }
-
-    pub unsafe fn init(&mut self) {
-        unsafe { OpCode::init(&mut self.op, &mut self.control) }
+        Self { op }
     }
 }
 

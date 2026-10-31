@@ -1,8 +1,12 @@
-#[cfg(target_os = "linux")]
-mod linux;
+mod iovec;
+mod msghdr;
+mod sockaddr;
+mod types;
 
-#[cfg(target_os = "linux")]
-pub use linux::*;
+pub(crate) use iovec::*;
+pub(crate) use msghdr::*;
+pub(crate) use sockaddr::*;
+pub(crate) use types::*;
 
 use core::mem::MaybeUninit;
 

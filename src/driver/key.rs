@@ -80,8 +80,7 @@ impl ErasedKey {
             result: PushEntry::Pending(None),
             carrier: Carrier::new(op),
         };
-        let mut inner = ThinCell::new(raw_op);
-        unsafe { inner.borrow_unchecked().carrier.init() };
+        let inner = ThinCell::new(raw_op);
         Self {
             inner: unsafe { inner.unsize(|p| p as *const Inner<RawOp<dyn Carry>>) },
         }
@@ -136,7 +135,6 @@ impl ErasedKey {
     }
 
     unsafe fn take_result<T: OpCode>(self) -> BufResult<usize, T> {
-        // SAFETY: Caller guarantees that `T` is the actual concrete type.
         let this = unsafe { self.inner.downcast_unchecked::<RawOp<Carrier<T>>>() };
         let op = this.try_unwrap().map_err(|_| ()).expect("Key not unique");
         let res = op.result.take_ready().expect("Result not ready");

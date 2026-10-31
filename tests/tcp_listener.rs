@@ -112,12 +112,15 @@ async fn test_rsky_conn(conn: &mut TcpStream) -> io::Result<()> {
 
         let content = "hello world!";
         let a = format!(
-            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: keep-alive\r\n\r\n{}",
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: keep-alive\r\n\r\n",
             content.len(),
-            content
+            // content
         );
 
-        let (res, _) = conn.write(a).await.into();
+        let vec = rsky::io::IoVecArray::new_arg2(a, content);
+        let (res, _) = conn.write_vectored(vec).await.into();
+
+        // let (res, _) = conn.write(a).await.into();
         res?;
         // let n = res?;
         // println!("发送数据字节数：{}", n);

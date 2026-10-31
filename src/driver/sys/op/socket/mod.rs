@@ -4,7 +4,7 @@ use std::os::fd::{AsFd, OwnedFd};
 use crate::{
     io::{IntoInner, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
     os::net::{
-        AddressFamily, IoVec, MsgHdr, Protocol, RecvFlags, SendFlags, Shutdown, SockAddrArgs,
+        AddressFamily, MsgHdr, Protocol, RecvFlags, SendFlags, Shutdown, SockAddrArgs,
         SockAddrArgsMut, SocketType,
     },
 };
@@ -230,6 +230,7 @@ where
     pub(crate) fd: F,
     pub(crate) buffer: B,
     pub(crate) flags: RecvFlags,
+    pub(crate) msg: MsgHdr,
 }
 
 impl<F, B> RecvVectored<F, B>
@@ -237,17 +238,14 @@ where
     F: AsFd,
     B: IoVectoredBufMut,
 {
-    pub fn new(fd: F, buffer: B, flags: RecvFlags) -> Self {
-        Self { fd, buffer, flags }
-    }
-
-    pub(crate) fn init_control(&mut self, ctrl: &mut RecvVectoredControl) {
-        ctrl.slices = self
-            .buffer
-            .iter_spare_slice()
-            .map(IoVec::from_uninit)
-            .collect();
-        ctrl.msg.set_mut_vec(ctrl.slices.as_mut_slice());
+    pub fn new(fd: F, mut buffer: B, flags: RecvFlags) -> Self {
+        let msg = unsafe { MsgHdr::from_vec_mut(buffer.spare_mut()) };
+        Self {
+            fd,
+            buffer,
+            flags,
+            msg,
+        }
     }
 }
 
@@ -271,6 +269,7 @@ where
     pub(crate) fd: F,
     pub(crate) buffer: B,
     pub(crate) flags: SendFlags,
+    pub(crate) msg: MsgHdr,
 }
 
 impl<F, B> SendVectored<F, B>
@@ -279,16 +278,13 @@ where
     B: IoVectoredBuf,
 {
     pub fn new(fd: F, buffer: B, flags: SendFlags) -> Self {
-        Self { fd, buffer, flags }
-    }
-
-    pub(crate) fn init_control(&mut self, ctrl: &mut SendVectoredControl) {
-        ctrl.slices = self
-            .buffer
-            .iter_pos_slice()
-            .map(IoVec::from_slice)
-            .collect();
-        ctrl.msg.set_vec(ctrl.slices.as_slice());
+        let msg = unsafe { MsgHdr::from_vec_ref(buffer.data_pos()) };
+        Self {
+            fd,
+            buffer,
+            flags,
+            msg,
+        }
     }
 }
 
@@ -301,33 +297,5 @@ where
 
     fn into_inner(self) -> Self::Inner {
         self.buffer
-    }
-}
-
-pub struct RecvVectoredControl {
-    pub(crate) msg: MsgHdr,
-    pub(crate) slices: Vec<IoVec>,
-}
-
-impl Default for RecvVectoredControl {
-    fn default() -> Self {
-        Self {
-            msg: unsafe { std::mem::zeroed() },
-            slices: Vec::new(),
-        }
-    }
-}
-
-pub struct SendVectoredControl {
-    pub(crate) msg: MsgHdr,
-    pub(crate) slices: Vec<IoVec>,
-}
-
-impl Default for SendVectoredControl {
-    fn default() -> Self {
-        Self {
-            msg: MsgHdr::default(),
-            slices: Vec::new(),
-        }
     }
 }

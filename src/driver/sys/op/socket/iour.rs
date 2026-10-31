@@ -6,8 +6,8 @@ use std::{
 use io_uring::{opcode, types};
 
 use super::{
-    Accept, Bind, CloseSocket, Connect, CreateSocket, Listen, Recv, RecvVectored,
-    RecvVectoredControl, Send, SendVectored, SendVectoredControl, ShutdownSocket,
+    Accept, Bind, CloseSocket, Connect, CreateSocket, Listen, Recv, RecvVectored, Send,
+    SendVectored, ShutdownSocket,
 };
 use crate::{
     driver::{Extra, OpCode, OpEntry},
@@ -16,9 +16,7 @@ use crate::{
 };
 
 unsafe impl OpCode for CreateSocket {
-    type Control = ();
-
-    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+    fn create_entry(&mut self) -> OpEntry {
         opcode::Socket::new(
             self.domain.as_raw() as _,
             self.socket_type.as_raw() as i32 | net::SOCK_CLOEXEC,
@@ -28,7 +26,7 @@ unsafe impl OpCode for CreateSocket {
         .into()
     }
 
-    unsafe fn set_result(&mut self, _: &mut Self::Control, res: &io::Result<usize>, _: &Extra) {
+    unsafe fn set_result(&mut self, res: &io::Result<usize>, _: &Extra) {
         if let Ok(fd) = res {
             let fd = unsafe { OwnedFd::from_raw_fd(*fd as _) };
             self.opened_fd = Some(fd);
@@ -41,9 +39,7 @@ where
     F: AsFd,
     A: SockAddrArgs,
 {
-    type Control = ();
-
-    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+    fn create_entry(&mut self) -> OpEntry {
         let (addr_ptr, addr_len) = self.addr.addr_len_ptr();
         opcode::Bind::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
@@ -59,9 +55,7 @@ unsafe impl<F> OpCode for Listen<F>
 where
     F: AsFd,
 {
-    type Control = ();
-
-    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+    fn create_entry(&mut self) -> OpEntry {
         opcode::Listen::new(types::Fd(self.fd.as_fd().as_raw_fd()), self.backlog)
             .build()
             .into()
@@ -73,9 +67,7 @@ where
     F: AsFd,
     A: SockAddrArgsMut,
 {
-    type Control = ();
-
-    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+    fn create_entry(&mut self) -> OpEntry {
         let (addr_ptr, len_ptr) = self.addr.addr_reset_len_mut_ptr();
 
         let entry = opcode::Accept::new(
@@ -88,7 +80,7 @@ where
         entry.into()
     }
 
-    unsafe fn set_result(&mut self, _: &mut Self::Control, res: &io::Result<usize>, _: &Extra) {
+    unsafe fn set_result(&mut self, res: &io::Result<usize>, _: &Extra) {
         if let Ok(fd) = res {
             let fd = unsafe { OwnedFd::from_raw_fd(*fd as _) };
             self.accepted_fd = Some(fd);
@@ -101,9 +93,7 @@ where
     F: AsFd,
     A: SockAddrArgs,
 {
-    type Control = ();
-
-    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+    fn create_entry(&mut self) -> OpEntry {
         let (addr_ptr, addr_len) = self.addr.addr_len_ptr();
         opcode::Connect::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
@@ -119,9 +109,7 @@ unsafe impl<F> OpCode for ShutdownSocket<F>
 where
     F: AsFd,
 {
-    type Control = ();
-
-    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+    fn create_entry(&mut self) -> OpEntry {
         opcode::Shutdown::new(types::Fd(self.fd.as_fd().as_raw_fd()), self.how.how())
             .build()
             .into()
@@ -129,9 +117,7 @@ where
 }
 
 unsafe impl OpCode for CloseSocket {
-    type Control = ();
-
-    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+    fn create_entry(&mut self) -> OpEntry {
         opcode::Close::new(types::Fd(self.fd.as_fd().as_raw_fd()))
             .build()
             .into()
@@ -143,9 +129,7 @@ where
     F: AsFd,
     B: IoBufMut,
 {
-    type Control = ();
-
-    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+    fn create_entry(&mut self) -> OpEntry {
         let slice = self.buffer.spare_mut();
 
         opcode::Recv::new(
@@ -164,9 +148,7 @@ where
     F: AsFd,
     B: IoBuf,
 {
-    type Control = ();
-
-    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry {
+    fn create_entry(&mut self) -> OpEntry {
         let slice = self.buffer.data_pos();
         opcode::Send::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
@@ -184,16 +166,10 @@ where
     F: AsFd,
     B: IoVectoredBufMut,
 {
-    type Control = RecvVectoredControl;
-
-    unsafe fn init(&mut self, ctrl: &mut Self::Control) {
-        self.init_control(ctrl)
-    }
-
-    fn create_entry(&mut self, control: &mut Self::Control) -> OpEntry {
+    fn create_entry(&mut self) -> OpEntry {
         opcode::RecvMsg::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
-            control.msg.as_mut_ptr(),
+            self.msg.as_ptr_mut() as _,
         )
         .flags(self.flags.flags())
         .build()
@@ -206,16 +182,13 @@ where
     F: AsFd,
     B: IoVectoredBuf,
 {
-    type Control = SendVectoredControl;
-
-    unsafe fn init(&mut self, ctrl: &mut Self::Control) {
-        self.init_control(ctrl)
-    }
-
-    fn create_entry(&mut self, control: &mut Self::Control) -> OpEntry {
-        opcode::SendMsg::new(types::Fd(self.fd.as_fd().as_raw_fd()), control.msg.as_ptr())
-            .flags(self.flags.flags())
-            .build()
-            .into()
+    fn create_entry(&mut self) -> OpEntry {
+        opcode::SendMsg::new(
+            types::Fd(self.fd.as_fd().as_raw_fd()),
+            self.msg.as_ptr() as _,
+        )
+        .flags(self.flags.flags())
+        .build()
+        .into()
     }
 }
