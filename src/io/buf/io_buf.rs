@@ -4,89 +4,89 @@ use core::{mem::MaybeUninit, slice};
 const _: [&dyn IoBuf; 0] = [];
 
 pub trait IoBuf: 'static {
-    fn data_pos(&self) -> &[u8];
+    fn pos_ref(&self) -> &[u8];
 }
 
 impl<B: IoBuf + ?Sized> IoBuf for &'static B {
     #[inline]
-    fn data_pos(&self) -> &[u8] {
-        (**self).data_pos()
+    fn pos_ref(&self) -> &[u8] {
+        (**self).pos_ref()
     }
 }
 
 impl<B: IoBuf + ?Sized> IoBuf for &'static mut B {
     #[inline]
-    fn data_pos(&self) -> &[u8] {
-        (**self).data_pos()
+    fn pos_ref(&self) -> &[u8] {
+        (**self).pos_ref()
     }
 }
 
 impl<B: IoBuf + ?Sized + 'static> IoBuf for Box<B> {
     #[inline]
-    fn data_pos(&self) -> &[u8] {
-        (**self).data_pos()
+    fn pos_ref(&self) -> &[u8] {
+        (**self).pos_ref()
     }
 }
 
 impl<B: IoBuf + ?Sized + 'static> IoBuf for Rc<B> {
     #[inline]
-    fn data_pos(&self) -> &[u8] {
-        (**self).data_pos()
+    fn pos_ref(&self) -> &[u8] {
+        (**self).pos_ref()
     }
 }
 
 impl<B: IoBuf + ?Sized + 'static> IoBuf for Arc<B> {
     #[inline]
-    fn data_pos(&self) -> &[u8] {
-        (**self).data_pos()
+    fn pos_ref(&self) -> &[u8] {
+        (**self).pos_ref()
     }
 }
 
 impl IoBuf for [u8] {
     #[inline]
-    fn data_pos(&self) -> &[u8] {
+    fn pos_ref(&self) -> &[u8] {
         self
     }
 }
 
 impl<const N: usize> IoBuf for [u8; N] {
     #[inline]
-    fn data_pos(&self) -> &[u8] {
+    fn pos_ref(&self) -> &[u8] {
         self
     }
 }
 
 impl IoBuf for str {
     #[inline]
-    fn data_pos(&self) -> &[u8] {
+    fn pos_ref(&self) -> &[u8] {
         self.as_bytes()
     }
 }
 
 impl IoBuf for String {
     #[inline]
-    fn data_pos(&self) -> &[u8] {
+    fn pos_ref(&self) -> &[u8] {
         self.as_bytes()
     }
 }
 
 impl IoBuf for Vec<u8> {
     #[inline]
-    fn data_pos(&self) -> &[u8] {
+    fn pos_ref(&self) -> &[u8] {
         self
     }
 }
 
 impl IoBuf for super::super::Bytes {
     #[inline]
-    fn data_pos(&self) -> &[u8] {
+    fn pos_ref(&self) -> &[u8] {
         self
     }
 }
 
 impl IoBuf for super::super::BytesMut {
     #[inline]
-    fn data_pos(&self) -> &[u8] {
+    fn pos_ref(&self) -> &[u8] {
         self
     }
 }

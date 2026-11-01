@@ -278,7 +278,7 @@ where
     B: IoVectoredBuf,
 {
     pub fn new(fd: F, buffer: B, flags: SendFlags) -> Self {
-        let msg = unsafe { MsgHdr::from_vec_ref(buffer.data_pos()) };
+        let msg = unsafe { MsgHdr::from_vec_ref(buffer.pos_ref()) };
         Self {
             fd,
             buffer,
