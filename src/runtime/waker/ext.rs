@@ -66,6 +66,7 @@ impl<'a> ExtWaker<'a> {
     }
 }
 
+#[repr(transparent)]
 struct OwnedExtWaker(Arc<Inner>);
 
 struct Inner {
