@@ -1,5 +1,6 @@
 use super::super::{io::IoVec, sys};
 
+#[repr(transparent)]
 pub struct RecvFlags(u32);
 
 impl RecvFlags {
@@ -17,6 +18,7 @@ impl RecvFlags {
     }
 }
 
+#[repr(transparent)]
 pub struct SendFlags(u32);
 
 impl SendFlags {
@@ -35,6 +37,7 @@ impl SendFlags {
     }
 }
 
+#[repr(transparent)]
 pub struct Shutdown(i32);
 
 impl Shutdown {
@@ -48,6 +51,7 @@ impl Shutdown {
     }
 }
 
+#[repr(transparent)]
 pub struct MsgHdr {
     _inner: sys::MsgHdr,
 }

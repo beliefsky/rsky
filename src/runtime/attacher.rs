@@ -6,6 +6,7 @@ use std::{
 
 use crate::{driver::SharedFd, io::IntoInner, runtime::Runtime};
 
+#[repr(transparent)]
 pub(crate) struct Attacher<S> {
     source: SharedFd<S>,
 }

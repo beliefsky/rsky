@@ -1,8 +1,6 @@
-//! No-op stand-ins used when the `console` feature is disabled.
-
 use core::marker::PhantomData;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct SpawnMeta;
 
 impl SpawnMeta {
@@ -22,20 +20,14 @@ impl SpawnMeta {
     }
 }
 
-#[must_use = "the task span is exited as soon as this is dropped"]
 pub(crate) struct Entered<'a>(PhantomData<&'a TaskSpan>);
 
 pub(crate) type EnterGuard<'a> = Entered<'a>;
 
-#[derive(Debug)]
 pub(crate) struct TaskSpan;
 
 impl TaskSpan {
     #[inline(always)]
-    #[expect(
-        clippy::extra_unused_type_parameters,
-        reason = "mirrors the enabled variant, which records the future's size"
-    )]
     pub(crate) fn new<F>(_meta: SpawnMeta) -> Self {
         Self
     }

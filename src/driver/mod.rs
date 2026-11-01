@@ -4,7 +4,6 @@ use core::{
 };
 use std::{io, os::fd::RawFd};
 
-mod control;
 mod panic;
 
 mod fd;

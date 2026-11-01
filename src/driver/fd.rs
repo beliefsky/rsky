@@ -11,6 +11,7 @@ use core::{
 };
 use std::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
 
+#[repr(transparent)]
 pub struct SharedFd<T>(Arc<Inner<T>>);
 
 impl<T: AsFd> SharedFd<T> {

@@ -26,6 +26,7 @@ use io_uring::{
 use io_uring::cqueue::Entry as CEntry;
 use io_uring::squeue::Entry as SEntry;
 
+#[repr(transparent)]
 struct DriverFlags(u8);
 
 impl DriverFlags {

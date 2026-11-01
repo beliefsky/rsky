@@ -9,6 +9,7 @@ use crate::{
 };
 
 #[derive(Clone)]
+#[repr(transparent)]
 pub struct TcpListener {
     inner: Socket,
 }
@@ -46,6 +47,7 @@ impl TcpListener {
 }
 
 #[derive(Clone)]
+#[repr(transparent)]
 pub struct TcpStream {
     inner: Socket,
 }

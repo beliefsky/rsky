@@ -1,5 +1,7 @@
 use core::{
+    hash,
     hash::Hash,
+    marker::PhantomData,
     mem,
     ops::{Deref, DerefMut},
     ptr,
@@ -10,14 +12,14 @@ use std::io;
 use thin_cell::unsync::{Inner, Ref, ThinCell, Weak};
 
 use crate::{
-    driver::{Carry, Extra, OpCode, OpEntry, PushEntry, control::Carrier},
-    io::{BufResult, IntoInner},
+    driver::{Extra, OpCode, OpEntry, PushEntry},
+    io::BufResult,
 };
 
 #[repr(transparent)]
 pub struct Key<T> {
     erased: ErasedKey,
-    _p: std::marker::PhantomData<T>,
+    _p: PhantomData<T>,
 }
 
 impl<T> Key<T> {
@@ -38,7 +40,7 @@ impl<T: OpCode + 'static> Key<T> {
 
         Self {
             erased,
-            _p: std::marker::PhantomData,
+            _p: PhantomData,
         }
     }
 }
@@ -47,7 +49,7 @@ impl<T> Clone for Key<T> {
     fn clone(&self) -> Self {
         Self {
             erased: self.erased.clone(),
-            _p: std::marker::PhantomData,
+            _p: PhantomData,
         }
     }
 }
@@ -69,7 +71,7 @@ impl<T> DerefMut for Key<T> {
 #[derive(Clone)]
 #[repr(transparent)]
 pub struct ErasedKey {
-    inner: ThinCell<RawOp<dyn Carry>>,
+    inner: ThinCell<RawOp<dyn OpCode>>,
 }
 
 impl ErasedKey {
@@ -78,11 +80,11 @@ impl ErasedKey {
             extra,
             cancelled: false,
             result: PushEntry::Pending(None),
-            carrier: Carrier::new(op),
+            op,
         };
         let inner = ThinCell::new(raw_op);
         Self {
-            inner: unsafe { inner.unsize(|p| p as *const Inner<RawOp<dyn Carry>>) },
+            inner: unsafe { inner.unsize(|p| p as *const Inner<RawOp<dyn OpCode>>) },
         }
     }
 
@@ -106,7 +108,7 @@ impl ErasedKey {
     }
 
     #[inline]
-    pub(crate) fn borrow(&self) -> Ref<'_, RawOp<dyn Carry>> {
+    pub(crate) fn borrow(&self) -> Ref<'_, RawOp<dyn OpCode>> {
         self.inner.borrow()
     }
 
@@ -126,8 +128,8 @@ impl ErasedKey {
     pub(crate) fn set_result(&self, res: io::Result<usize>) {
         let mut this = self.borrow();
         {
-            let RawOp { extra, carrier, .. } = &mut *this;
-            unsafe { Carry::set_result(carrier, &res, extra) };
+            let RawOp { extra, op, .. } = &mut *this;
+            unsafe { op.set_result(&res, extra) };
         }
         if let PushEntry::Pending(Some(w)) = mem::replace(&mut this.result, PushEntry::Ready(res)) {
             w.wake();
@@ -135,10 +137,10 @@ impl ErasedKey {
     }
 
     unsafe fn take_result<T: OpCode>(self) -> BufResult<usize, T> {
-        let this = unsafe { self.inner.downcast_unchecked::<RawOp<Carrier<T>>>() };
-        let op = this.try_unwrap().map_err(|_| ()).expect("Key not unique");
-        let res = op.result.take_ready().expect("Result not ready");
-        BufResult::new(res, op.carrier.into_inner())
+        let this = unsafe { self.inner.downcast_unchecked::<RawOp<T>>() };
+        let raw_op = this.try_unwrap().map_err(|_| ()).expect("Key not unique");
+        let res = raw_op.result.take_ready().expect("Result not ready");
+        BufResult::new(res, raw_op.op)
     }
 
     pub(crate) fn swap_extra(&self, extra: Extra) -> Extra {
@@ -167,37 +169,33 @@ impl PartialEq for ErasedKey {
 impl Eq for ErasedKey {}
 
 impl Hash for ErasedKey {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
         (self.inner.as_ptr() as usize).hash(state)
     }
 }
 
 impl Unpin for ErasedKey {}
 
-#[repr(C)]
-pub(crate) struct RawOp<M: ?Sized> {
+pub(crate) struct RawOp<P: OpCode + ?Sized> {
     extra: Extra,
     cancelled: bool,
     result: PushEntry<Option<Waker>, io::Result<usize>>,
-    pub(crate) carrier: M,
+    pub(crate) op: P,
 }
 
-impl<C: ?Sized> RawOp<C> {
+impl<P: OpCode + ?Sized> RawOp<P> {
     pub fn extra_mut(&mut self) -> &mut Extra {
         &mut self.extra
     }
-}
-
-impl<C: Carry + ?Sized> RawOp<C> {
     pub fn create_entry(&mut self) -> OpEntry {
-        self.carrier.create_entry().with_extra(&self.extra)
+        self.op.create_entry().with_extra(&self.extra)
     }
 }
 
 #[derive(Clone)]
 #[repr(transparent)]
 pub(crate) struct WeakKey {
-    inner: Weak<RawOp<dyn Carry>>,
+    inner: Weak<RawOp<dyn OpCode>>,
 }
 
 impl WeakKey {
@@ -221,7 +219,7 @@ impl PartialEq for WeakKey {
 impl Eq for WeakKey {}
 
 impl Hash for WeakKey {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
         (self.inner.as_ptr() as usize).hash(state)
     }
 }

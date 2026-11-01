@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 mod iour;
 pub use iour::*;
 
+#[repr(transparent)]
 struct AwakeFlag(AtomicU8);
 
 impl AwakeFlag {
