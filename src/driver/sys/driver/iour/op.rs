@@ -1,7 +1,7 @@
 use std::io;
 
 use super::SEntry;
-use crate::driver::{Extra, control::Carrier};
+use crate::driver::Extra;
 
 pub enum OpEntry {
     /// This operation creates an io-uring submission entry.
@@ -33,22 +33,4 @@ pub unsafe trait OpCode {
     fn create_entry(&mut self) -> OpEntry;
 
     unsafe fn set_result(&mut self, _: &io::Result<usize>, _: &Extra) {}
-}
-
-pub(crate) trait Carry {
-    /// See [`OpCode::create_entry`].
-    fn create_entry(&mut self) -> OpEntry;
-
-    /// See [`OpCode::set_result`].
-    unsafe fn set_result(&mut self, _: &io::Result<usize>, _: &Extra);
-}
-
-impl<T: OpCode> Carry for Carrier<T> {
-    fn create_entry(&mut self) -> OpEntry {
-        self.op.create_entry()
-    }
-
-    unsafe fn set_result(&mut self, result: &io::Result<usize>, extra: &Extra) {
-        unsafe { OpCode::set_result(&mut self.op, result, extra) }
-    }
 }

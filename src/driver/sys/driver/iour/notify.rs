@@ -4,6 +4,7 @@ use std::io;
 
 use crate::driver::sys::driver::AwakeFlag;
 
+#[repr(transparent)]
 pub(super) struct Notifier {
     notify: Arc<Notify>,
 }

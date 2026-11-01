@@ -17,6 +17,7 @@ use crate::{
 };
 
 #[derive(Clone)]
+#[repr(transparent)]
 pub struct Socket {
     pub(crate) socket: Attacher<OwnedFd>,
 }

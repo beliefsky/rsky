@@ -1,5 +1,5 @@
 use core::{
-    array,
+    array, hint,
     mem::{ManuallyDrop, MaybeUninit, offset_of},
     panic::AssertUnwindSafe,
     pin::Pin,
@@ -7,7 +7,7 @@ use core::{
     sync::atomic::{AtomicPtr, Ordering::*},
     task::{Context, Poll, Waker, ready},
 };
-use std::panic::catch_unwind;
+use std::{panic::catch_unwind, thread};
 
 use super::{
     PanicResult, SendWrapper, Shared, UnsafeCell,
@@ -41,7 +41,6 @@ struct Header {
     tracker: ManuallyDrop<SendWrapper<()>>,
     shared: AtomicPtr<Shared>,
     waker: UnsafeCell<MaybeUninit<Waker>>,
-    /// Zero-sized unless the `console` feature is enabled.
     span: TaskSpan,
 }
 
@@ -100,12 +99,12 @@ impl<F: Future + 'static> TaskAlloc<F> {
 
         future_cell.with(|fut_ptr| {
             let fut_ptr = fut_ptr as *const PanicResult<F::Output>;
-            unsafe { std::ptr::copy_nonoverlapping(fut_ptr, target.as_ptr().cast(), 1) };
+            unsafe { ptr::copy_nonoverlapping(fut_ptr, target.as_ptr().cast(), 1) };
         });
     }
 
     unsafe fn drop_future(header: NonNull<Header>, has_result: bool) {
-        if ::std::thread::panicking() {
+        if thread::panicking() {
             return;
         }
 
@@ -234,7 +233,7 @@ impl Task {
 
         header.shared.store(ptr::null_mut(), Release);
 
-        if ::std::thread::panicking() {
+        if thread::panicking() {
             return;
         }
 
@@ -260,7 +259,7 @@ impl Task {
         let header = self.header();
 
         while header.state.load::<Strong>().is_scheduling() {
-            std::hint::spin_loop();
+            hint::spin_loop();
         }
     }
 
@@ -286,7 +285,7 @@ impl Drop for Task {
             return;
         };
 
-        if std::thread::panicking() {
+        if thread::panicking() {
             unsafe { (header.vtable.dealloc)(self.0) }
             return;
         }

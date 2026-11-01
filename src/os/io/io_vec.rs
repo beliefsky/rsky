@@ -3,6 +3,7 @@ use core::mem::MaybeUninit;
 
 pub const IOVEC_MAX_LEN: usize = sys::IOVEC_MAX_LEN;
 
+#[repr(transparent)]
 pub struct IoVec {
     inner: sys::IoVec,
 }

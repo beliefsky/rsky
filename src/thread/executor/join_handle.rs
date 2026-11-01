@@ -11,7 +11,6 @@ use std::{io, panic::resume_unwind};
 
 use super::{Panic, task::Task};
 
-#[must_use = "Drop `JoinHandle` will cancel the task. Use `detach` to run it in background."]
 #[repr(transparent)]
 pub struct JoinHandle<T> {
     task: Option<Task>,
