@@ -149,7 +149,7 @@ where
     B: IoBuf,
 {
     fn create_entry(&mut self) -> OpEntry {
-        let slice = self.buffer.data_pos();
+        let slice = self.buffer.pos_ref();
         opcode::Send::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
             slice.as_ptr(),

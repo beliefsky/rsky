@@ -1,7 +1,7 @@
 use crate::driver::Extra;
 
-#[non_exhaustive]
 #[derive(Default)]
+#[non_exhaustive]
 pub(crate) struct Ext {
     personality: Option<u16>,
 }

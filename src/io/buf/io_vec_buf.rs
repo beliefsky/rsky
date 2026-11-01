@@ -3,47 +3,47 @@ use crate::os::io::IoVec;
 use alloc::{rc::Rc, sync::Arc};
 
 pub trait IoVectoredBuf: 'static {
-    fn data_pos(&self) -> &[IoVec];
+    fn pos_ref(&self) -> &[IoVec];
 }
 
 impl<B: IoVectoredBuf + ?Sized> IoVectoredBuf for &'static B {
     #[inline]
-    fn data_pos(&self) -> &[IoVec] {
-        (**self).data_pos()
+    fn pos_ref(&self) -> &[IoVec] {
+        (**self).pos_ref()
     }
 }
 
 impl<B: IoVectoredBuf + ?Sized> IoVectoredBuf for &'static mut B {
     #[inline]
-    fn data_pos(&self) -> &[IoVec] {
-        (**self).data_pos()
+    fn pos_ref(&self) -> &[IoVec] {
+        (**self).pos_ref()
     }
 }
 
 impl<B: IoVectoredBuf + ?Sized + 'static> IoVectoredBuf for Box<B> {
     #[inline]
-    fn data_pos(&self) -> &[IoVec] {
-        (**self).data_pos()
+    fn pos_ref(&self) -> &[IoVec] {
+        (**self).pos_ref()
     }
 }
 
 impl<B: IoVectoredBuf + ?Sized + 'static> IoVectoredBuf for Rc<B> {
     #[inline]
-    fn data_pos(&self) -> &[IoVec] {
-        (**self).data_pos()
+    fn pos_ref(&self) -> &[IoVec] {
+        (**self).pos_ref()
     }
 }
 
 impl<B: IoVectoredBuf + ?Sized + 'static> IoVectoredBuf for Arc<B> {
     #[inline]
-    fn data_pos(&self) -> &[IoVec] {
-        (**self).data_pos()
+    fn pos_ref(&self) -> &[IoVec] {
+        (**self).pos_ref()
     }
 }
 
 impl<E: 'static, const N: usize> IoVectoredBuf for IoVecArray<E, N> {
     #[inline]
-    fn data_pos(&self) -> &[IoVec] {
+    fn pos_ref(&self) -> &[IoVec] {
         self.vec_slice()
     }
 }
