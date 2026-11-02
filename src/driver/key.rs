@@ -176,6 +176,7 @@ impl Hash for ErasedKey {
 
 impl Unpin for ErasedKey {}
 
+#[repr(C)]
 pub(crate) struct RawOp<P: OpCode + ?Sized> {
     extra: Extra,
     cancelled: bool,

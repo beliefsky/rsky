@@ -20,11 +20,11 @@ pub use join_handle::{JoinError, JoinHandle, ResumeUnwind};
 use util::panic_guard;
 
 #[repr(transparent)]
-struct UnsafeCell<T>(std::cell::UnsafeCell<T>);
+struct UnsafeCell<T>(core::cell::UnsafeCell<T>);
 
 impl<T> UnsafeCell<T> {
     pub fn new(value: T) -> Self {
-        Self(std::cell::UnsafeCell::new(value))
+        Self(core::cell::UnsafeCell::new(value))
     }
 
     #[inline(always)]

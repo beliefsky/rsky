@@ -21,7 +21,7 @@ struct Inner {
     cold: List,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Default)]
 struct List {
     head: Option<TaskId>,
     tail: Option<TaskId>,
