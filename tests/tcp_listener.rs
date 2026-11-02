@@ -1,10 +1,10 @@
+use core::net::SocketAddr;
 use rsky::net::TcpListener;
 use rsky::net::TcpStream;
 use rsky::os::net::Shutdown;
 use rsky::os::net::SockAddr;
 use rsky::runtime;
 use std::io;
-use std::net::SocketAddr;
 
 #[test]
 fn test_rsky() -> io::Result<()> {

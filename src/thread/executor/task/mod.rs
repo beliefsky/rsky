@@ -1,3 +1,7 @@
+mod local;
+mod remote;
+mod state;
+
 use core::{
     array, hint,
     mem::{ManuallyDrop, MaybeUninit, offset_of},
@@ -20,10 +24,6 @@ use super::{
     },
     util::{panic_guard, transpose},
 };
-
-mod local;
-mod remote;
-mod state;
 
 #[repr(transparent)]
 pub(crate) struct Task(NonNull<Header>);
