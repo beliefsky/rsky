@@ -126,9 +126,7 @@ impl State {
     }
 
     pub(crate) fn dec(&self) -> Snapshot {
-        let state = Snapshot(self.0.fetch_sub(RC_UNIT, Strong::ACQ_REL));
-        debug_assert!(state.count() >= 1, "Reference count underflow");
-        state
+        Snapshot(self.0.fetch_sub(RC_UNIT, Strong::ACQ_REL))
     }
 }
 

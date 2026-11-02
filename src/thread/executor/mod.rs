@@ -1,3 +1,13 @@
+pub mod console;
+mod join_handle;
+mod queue;
+mod task;
+mod util;
+mod waker;
+
+pub use console::SpawnMeta;
+pub use join_handle::{JoinError, JoinHandle, ResumeUnwind};
+
 use super::SendWrapper;
 use core::{
     any::Any,
@@ -8,15 +18,6 @@ use core::{
 use crossbeam_queue::SegQueue;
 use queue::{TaskId, TaskQueue};
 
-pub mod console;
-mod join_handle;
-mod queue;
-mod task;
-mod util;
-mod waker;
-
-pub use console::SpawnMeta;
-pub use join_handle::{JoinError, JoinHandle, ResumeUnwind};
 use util::panic_guard;
 
 #[repr(transparent)]
@@ -137,7 +138,10 @@ impl Executor {
 
         self.shared().drain_sync(queue);
 
-        for id in queue.iter_hot().take(self.config.max_interval as _) {
+        for _ in 0..self.config.max_interval {
+            let Some(id) = queue.hot_head() else {
+                return false;
+            };
             queue.make_cold(id);
             let task = queue.take(id).expect("Task was not reset back");
             let res = unsafe { task.run() };
@@ -153,7 +157,7 @@ impl Executor {
     }
 
     pub fn has_task(&self) -> bool {
-        self.queue().hot_head().is_some()
+        self.queue().has_hot()
     }
 
     pub fn num_alive_tasks(&self) -> usize {

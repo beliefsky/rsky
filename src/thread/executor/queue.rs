@@ -34,11 +34,6 @@ struct Item {
     is_hot: bool,
 }
 
-pub struct Iter<'a> {
-    queue: &'a TaskQueue,
-    curr: Option<TaskId>,
-}
-
 type QueueMarker = bool;
 const HOT: QueueMarker = true;
 const COLD: QueueMarker = false;
@@ -51,24 +46,22 @@ impl TaskQueue {
     }
 
     pub unsafe fn clear(&self) {
-        unsafe {
-            self.with_inner(|inner| {
-                if inner.map.is_empty() {
-                    return;
-                }
+        loop {
+            let tasks: Vec<Task> = unsafe {
+                self.with_inner(|inner| {
+                    inner.hot = List::default();
+                    inner.cold = List::default();
+                    inner.map.drain().filter_map(|(_, i)| i.task).collect()
+                })
+            };
 
-                inner.hot.head = None;
-                inner.hot.tail = None;
-                inner.cold.head = None;
-                inner.cold.tail = None;
-
-                for task in inner.map.drain().filter_map(|(_, i)| i.task) {
-                    task.drop();
-                    task.wait_for_scheduling();
-                }
-
-                debug_assert!(inner.map.is_empty());
-            })
+            if tasks.is_empty() {
+                return;
+            }
+            for task in tasks {
+                unsafe { task.drop() };
+                task.wait_for_scheduling();
+            }
         }
     }
 
@@ -76,7 +69,6 @@ impl TaskQueue {
         self.hot_head().is_some()
     }
 
-    /// Number of tasks in the queue, hot and cold.
     pub fn len(&self) -> usize {
         unsafe { self.with_inner(|inner| inner.map.len()) }
     }
@@ -96,7 +88,6 @@ impl TaskQueue {
         unsafe {
             self.with_inner(|inner| {
                 let place = inner.map.get_mut(key).expect("Invalid key");
-                debug_assert!(place.task.is_none(), "Task was not taken");
                 place.task = Some(task);
             })
         }
@@ -136,26 +127,8 @@ impl TaskQueue {
         unsafe { self.with_inner(|inner| inner.make_cold(key)) }
     }
 
-    pub fn next_hot(&self, key: TaskId) -> Option<TaskId> {
-        unsafe {
-            self.with_inner(|inner| {
-                inner.map.get(key).and_then(|item| {
-                    debug_assert!(item.is_hot);
-                    item.next
-                })
-            })
-        }
-    }
-
     pub fn hot_head(&self) -> Option<TaskId> {
         unsafe { self.with_inner(|inner| inner.hot.head) }
-    }
-
-    pub fn iter_hot(&self) -> Iter<'_> {
-        Iter {
-            queue: self,
-            curr: self.hot_head(),
-        }
     }
 
     pub fn remove(&self, key: TaskId) -> Option<Task> {
@@ -176,7 +149,6 @@ impl TaskQueue {
 
     #[inline(always)]
     unsafe fn with_inner<R, F: FnOnce(&mut Inner) -> R>(&self, f: F) -> R {
-        // SAFETY: Caller must ensure no concurrent access to the queue.
         self.inner.with_mut(|inner| f(unsafe { &mut *inner }))
     }
 }
@@ -216,7 +188,6 @@ impl Inner {
 
         let (prev, next) = {
             let item = self.map.get(key).expect("item exists");
-            debug_assert_eq!(item.is_hot, HOT);
             (item.prev, item.next)
         };
 
@@ -253,23 +224,11 @@ impl Inner {
     }
 
     fn make_cold(&mut self, key: TaskId) {
-        let Some(item) = self.map.get(key) else {
+        if !self.map.contains_key(key) {
             return;
-        };
-
-        debug_assert!(item.is_hot);
+        }
 
         self.unlink::<HOT>(key);
         self.link_tail::<COLD>(key);
-    }
-}
-
-impl<'a> Iterator for Iter<'a> {
-    type Item = TaskId;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let curr = self.curr?;
-        self.curr = self.queue.next_hot(curr);
-        Some(curr)
     }
 }

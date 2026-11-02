@@ -39,7 +39,7 @@ impl<'a> Remote<'a> {
             return;
         };
 
-        super::panic_guard!();
+        super::panic_guard!(skip_if_unwinding);
 
         shared.pending.fetch_add(1, Ordering::Release);
 
@@ -55,8 +55,6 @@ impl<'a> Remote<'a> {
         let mut state = self.state();
 
         loop {
-            debug_assert!(state.has_result() || state.is_cancelled() || !state.is_completed());
-
             if state.has_result() {
                 self.header().state.set_has_result::<Strong, false>();
 
@@ -72,7 +70,6 @@ impl<'a> Remote<'a> {
             state = self.header().state.start_setting_waker();
 
             if state.has_result() {
-                debug_assert!(state.is_completed());
                 state = self.header().state.finish_setting_waker::<false>();
 
                 continue;

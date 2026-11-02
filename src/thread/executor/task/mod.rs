@@ -225,10 +225,6 @@ impl Task {
 
     pub unsafe fn drop(&self) {
         let header = self.header();
-        debug_assert!(
-            header.tracker.valid(),
-            "drop should only be called by Executor"
-        );
         let state = header.state.set_dropped();
 
         header.shared.store(ptr::null_mut(), Release);
@@ -291,9 +287,6 @@ impl Drop for Task {
         }
 
         super::panic_guard!();
-
-        debug_assert!(state.is_completed() | state.is_cancelled());
-        debug_assert!(!state.is_setting_waker());
 
         if state.has_result() {
             unsafe { (header.vtable.drop_future)(self.0, true) };

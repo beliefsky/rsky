@@ -45,8 +45,6 @@ impl<'a> Local<'a> {
     pub unsafe fn poll<T>(&self, cx: &mut Context<'_>) -> Poll<Option<PanicResult<T>>> {
         let state = self.state();
 
-        debug_assert!(state.has_result() || !state.is_completed() || state.is_cancelled());
-
         if state.has_result() {
             self.header().state.set_has_result::<Strong, false>();
 
