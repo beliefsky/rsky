@@ -1,20 +1,31 @@
 use core::task::Poll;
 
+pub(crate) struct AbortOnPanic;
+
+impl AbortOnPanic {
+    pub(crate) fn unless_unwinding() -> Option<Self> {
+        if std::thread::panicking() {
+            None
+        } else {
+            Some(Self)
+        }
+    }
+}
+
+impl Drop for AbortOnPanic {
+    fn drop(&mut self) {
+        if std::thread::panicking() {
+            std::process::abort()
+        }
+    }
+}
+
 macro_rules! panic_guard {
     () => {
-        let _b = {
-            pub(crate) struct AbortOnPanic(());
-
-            impl Drop for AbortOnPanic {
-                fn drop(&mut self) {
-                    if ::std::thread::panicking() {
-                        ::std::process::abort()
-                    }
-                }
-            }
-
-            AbortOnPanic(())
-        };
+        let _b = crate::thread::executor::util::AbortOnPanic;
+    };
+    (skip_if_unwinding) => {
+        let _b = crate::thread::executor::util::AbortOnPanic::unless_unwinding();
     };
 }
 
