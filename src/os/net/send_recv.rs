@@ -57,18 +57,24 @@ pub struct MsgHdr {
 }
 
 impl MsgHdr {
-    pub unsafe fn from_vec_ref(iovec: &[IoVec]) -> Self {
-        let iovec = unsafe { &*(iovec as *const [IoVec] as *const [sys::IoVec]) };
-        MsgHdr {
-            _inner: unsafe { sys::MsgHdr::from_vec_ref(iovec) },
+    pub fn new() -> Self {
+        Self {
+            _inner: sys::MsgHdr::new(),
         }
     }
 
-    pub unsafe fn from_vec_mut(iovec: &mut [IoVec]) -> Self {
-        let iovec = unsafe { &mut *(iovec as *mut [IoVec] as *mut [sys::IoVec]) };
-        MsgHdr {
-            _inner: unsafe { sys::MsgHdr::from_vec_mut(iovec) },
-        }
+    #[inline]
+    pub fn set_vec_ref(&mut self, vec: &[IoVec]) {
+        let vec = unsafe { &*(vec as *const [IoVec] as *const [sys::IoVec]) };
+
+        self._inner.set_vec_ref(vec);
+    }
+
+    #[inline]
+    pub fn set_vec_mut(&mut self, vec: &mut [IoVec]) {
+        let vec = unsafe { &mut *(vec as *mut [IoVec] as *mut [sys::IoVec]) };
+
+        self._inner.set_vec_mut(vec);
     }
 
     pub fn as_ptr(&self) -> *const MsgHdr {

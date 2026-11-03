@@ -4,7 +4,6 @@ use core::{
     future::poll_fn,
     mem::ManuallyDrop,
     ops::Deref,
-    panic::RefUnwindSafe,
     ptr,
     sync::atomic::{AtomicBool, Ordering},
     task::Poll,
@@ -109,5 +108,3 @@ struct Inner<T> {
     waits: AtomicBool,
     waker: AtomicWaker,
 }
-
-impl<T> RefUnwindSafe for Inner<T> {}

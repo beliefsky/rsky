@@ -238,13 +238,12 @@ where
     F: AsFd,
     B: IoVectoredBufMut,
 {
-    pub fn new(fd: F, mut buffer: B, flags: RecvFlags) -> Self {
-        let msg = unsafe { MsgHdr::from_vec_mut(buffer.spare_mut()) };
+    pub fn new(fd: F, buffer: B, flags: RecvFlags) -> Self {
         Self {
             fd,
             buffer,
             flags,
-            msg,
+            msg: MsgHdr::new(),
         }
     }
 }
@@ -278,12 +277,11 @@ where
     B: IoVectoredBuf,
 {
     pub fn new(fd: F, buffer: B, flags: SendFlags) -> Self {
-        let msg = unsafe { MsgHdr::from_vec_ref(buffer.pos_ref()) };
         Self {
             fd,
             buffer,
             flags,
-            msg,
+            msg: MsgHdr::new(),
         }
     }
 }

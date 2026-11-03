@@ -8,17 +8,15 @@ mod waker;
 pub use console::SpawnMeta;
 pub use join_handle::{JoinError, JoinHandle, ResumeUnwind};
 
-use super::SendWrapper;
 use core::{
-    any::Any,
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
     task::Waker,
 };
 use crossbeam_queue::SegQueue;
-use queue::{TaskId, TaskQueue};
 
-use util::panic_guard;
+use super::SendWrapper;
+use queue::{TaskId, TaskQueue};
 
 #[repr(transparent)]
 struct UnsafeCell<T>(core::cell::UnsafeCell<T>);
@@ -44,9 +42,6 @@ impl<T> UnsafeCell<T> {
         f(self.0.get())
     }
 }
-
-pub(crate) type PanicResult<T> = Result<T, Panic>;
-pub(crate) type Panic = Box<dyn Any + Send + 'static>;
 
 pub struct Executor {
     ptr: NonNull<Shared>,

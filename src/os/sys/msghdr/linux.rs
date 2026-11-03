@@ -1,4 +1,4 @@
-use core::{ffi::c_void, ptr};
+use core::{ffi::c_void, mem};
 
 use super::super::{IoVec, Socklen};
 
@@ -15,26 +15,20 @@ pub(crate) struct MsgHdr {
 }
 
 impl MsgHdr {
-    pub(crate) unsafe fn from_vec_ref(iovec: &[IoVec]) -> Self {
-        Self {
-            msg_name: ptr::null_mut(),
-            msg_namelen: 0,
-            msg_iov: iovec.as_ptr() as _,
-            msg_iovlen: iovec.len(),
-            msg_control: ptr::null_mut(),
-            msg_controllen: 0,
-            msg_flags: 0,
-        }
+    #[inline]
+    pub(crate) fn new() -> Self {
+        unsafe { mem::zeroed() }
     }
-    pub(crate) unsafe fn from_vec_mut(iovec: &mut [IoVec]) -> Self {
-        Self {
-            msg_name: ptr::null_mut(),
-            msg_namelen: 0,
-            msg_iov: iovec.as_mut_ptr(),
-            msg_iovlen: iovec.len(),
-            msg_control: ptr::null_mut(),
-            msg_controllen: 0,
-            msg_flags: 0,
-        }
+
+    #[inline]
+    pub fn set_vec_ref(&mut self, vec: &[IoVec]) {
+        self.msg_iov = vec.as_ptr() as _;
+        self.msg_iovlen = vec.len();
+    }
+
+    #[inline]
+    pub fn set_vec_mut(&mut self, vec: &mut [IoVec]) {
+        self.msg_iov = vec.as_mut_ptr();
+        self.msg_iovlen = vec.len();
     }
 }

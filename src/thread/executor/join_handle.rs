@@ -7,9 +7,8 @@ use core::{
     ptr,
     task::{Context, Poll},
 };
-use std::{io, panic::resume_unwind};
 
-use super::{Panic, task::Task};
+use super::task::Task;
 
 #[repr(transparent)]
 pub struct JoinHandle<T> {
@@ -52,8 +51,6 @@ impl<T> JoinHandle<T> {
 pub enum JoinError {
     /// The task was cancelled.
     Cancelled,
-    /// The task panicked.
-    Panicked(Panic),
 }
 
 pub trait ResumeUnwind {
@@ -69,15 +66,6 @@ impl<T> ResumeUnwind for Result<T, JoinError> {
         match self {
             Ok(res) => Some(res),
             Err(JoinError::Cancelled) => None,
-            Err(JoinError::Panicked(e)) => resume_unwind(e),
-        }
-    }
-}
-
-impl JoinError {
-    pub fn resume_unwind(self) {
-        if let JoinError::Panicked(e) = self {
-            resume_unwind(e)
         }
     }
 }
@@ -86,21 +74,11 @@ impl Display for JoinError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             JoinError::Cancelled => write!(f, "Task was cancelled"),
-            JoinError::Panicked(_) => write!(f, "Task has panicked"),
         }
     }
 }
 
 impl Error for JoinError {}
-
-impl From<JoinError> for io::Error {
-    fn from(e: JoinError) -> Self {
-        match e {
-            JoinError::Cancelled => io::Error::other("Task was cancelled"),
-            JoinError::Panicked(_) => io::Error::other("Task has panicked"),
-        }
-    }
-}
 
 impl<T> Future for JoinHandle<T> {
     type Output = Result<T, JoinError>;
@@ -112,8 +90,7 @@ impl<T> Future for JoinHandle<T> {
             self.task = None;
 
             match res {
-                Some(Ok(res)) => Ok(res),
-                Some(Err(e)) => Err(JoinError::Panicked(e)),
+                Some(res) => Ok(res),
                 None => Err(JoinError::Cancelled),
             }
         })

@@ -1,10 +1,10 @@
-use super::super::IoBuf;
+use super::super::{IoBuf, IoVectoredBuf};
 use crate::os::io::IoVec;
-use core::mem::MaybeUninit;
+use core::{cell::UnsafeCell, mem::MaybeUninit};
 
 pub struct IoVecArray<E, const N: usize> {
     data: E,
-    vec: [IoVec; N],
+    vec: UnsafeCell<[IoVec; N]>,
 }
 
 impl<E, const N: usize> IoVecArray<E, N> {
@@ -15,69 +15,75 @@ impl<E, const N: usize> IoVecArray<E, N> {
         &mut self.data
     }
 
-    pub fn vec_slice(&self) -> &[IoVec] {
-        &self.vec
-    }
-
     pub fn into(self) -> E {
         self.data
     }
+
+    fn new(data: E) -> Self {
+        Self {
+            data,
+            vec: UnsafeCell::new(unsafe { MaybeUninit::uninit().assume_init() }),
+        }
+    }
 }
 
-impl<E1, E2> IoVecArray<(E1, E2), 2>
-where
-    E1: IoBuf,
-    E2: IoBuf,
-{
+impl<E1: IoBuf, E2: IoBuf> IoVecArray<(E1, E2), 2> {
     pub fn new_arg2(v1: E1, v2: E2) -> Self {
-        let vec = unsafe { [IoVec::from_ref(v1.pos_ref()), IoVec::from_ref(v2.pos_ref())] };
-        Self {
-            data: (v1, v2),
-            vec: vec,
+        Self::new((v1, v2))
+    }
+}
+
+impl<E1: IoBuf, E2: IoBuf, const N: usize> IoVectoredBuf for IoVecArray<(E1, E2), N> {
+    fn pos_ref(&self) -> &[IoVec] {
+        unsafe {
+            let vec = self.vec.get().as_mut_unchecked();
+            *vec.get_unchecked_mut(0) = IoVec::from_ref(self.data.0.pos_ref());
+            *vec.get_unchecked_mut(1) = IoVec::from_ref(self.data.1.pos_ref());
+
+            vec.as_slice()
         }
     }
 }
 
-impl<E1, E2, E3> IoVecArray<(E1, E2, E3), 3>
-where
-    E1: IoBuf,
-    E2: IoBuf,
-    E3: IoBuf,
-{
+impl<E1: IoBuf, E2: IoBuf, E3: IoBuf> IoVecArray<(E1, E2, E3), 3> {
     pub fn new_arg3(v1: E1, v2: E2, v3: E3) -> Self {
-        let vec = unsafe {
-            [
-                IoVec::from_ref(v1.pos_ref()),
-                IoVec::from_ref(v2.pos_ref()),
-                IoVec::from_ref(v3.pos_ref()),
-            ]
-        };
-        Self {
-            data: (v1, v2, v3),
-            vec: vec,
+        Self::new((v1, v2, v3))
+    }
+}
+
+impl<E1: IoBuf, E2: IoBuf, E3: IoBuf, const N: usize> IoVectoredBuf
+    for IoVecArray<(E1, E2, E3), N>
+{
+    fn pos_ref(&self) -> &[IoVec] {
+        unsafe {
+            let vec = self.vec.get().as_mut_unchecked();
+            *vec.get_unchecked_mut(0) = IoVec::from_ref(self.data.0.pos_ref());
+            *vec.get_unchecked_mut(1) = IoVec::from_ref(self.data.1.pos_ref());
+            *vec.get_unchecked_mut(2) = IoVec::from_ref(self.data.2.pos_ref());
+
+            vec.as_slice()
         }
     }
 }
 
-impl<E1, E2, E3, E4> IoVecArray<(E1, E2, E3, E4), 4>
-where
-    E1: IoBuf,
-    E2: IoBuf,
-    E3: IoBuf,
-    E4: IoBuf,
-{
+impl<E1: IoBuf, E2: IoBuf, E3: IoBuf, E4: IoBuf> IoVecArray<(E1, E2, E3, E4), 4> {
     pub fn new_arg4(v1: E1, v2: E2, v3: E3, v4: E4) -> Self {
-        let vec = unsafe {
-            [
-                IoVec::from_ref(v1.pos_ref()),
-                IoVec::from_ref(v2.pos_ref()),
-                IoVec::from_ref(v3.pos_ref()),
-                IoVec::from_ref(v4.pos_ref()),
-            ]
-        };
-        Self {
-            data: (v1, v2, v3, v4),
-            vec: vec,
+        Self::new((v1, v2, v3, v4))
+    }
+}
+
+impl<E1: IoBuf, E2: IoBuf, E3: IoBuf, E4: IoBuf, const N: usize> IoVectoredBuf
+    for IoVecArray<(E1, E2, E3, E4), N>
+{
+    fn pos_ref(&self) -> &[IoVec] {
+        unsafe {
+            let vec = self.vec.get().as_mut_unchecked();
+            *vec.get_unchecked_mut(0) = IoVec::from_ref(self.data.0.pos_ref());
+            *vec.get_unchecked_mut(1) = IoVec::from_ref(self.data.1.pos_ref());
+            *vec.get_unchecked_mut(2) = IoVec::from_ref(self.data.2.pos_ref());
+            *vec.get_unchecked_mut(3) = IoVec::from_ref(self.data.3.pos_ref());
+
+            vec.as_slice()
         }
     }
 }
@@ -86,14 +92,25 @@ impl<E, const N: usize> IoVecArray<[E; N], N>
 where
     E: IoBuf,
 {
-    pub fn new_array(v: [E; N]) -> Self {
-        let vec = unsafe { MaybeUninit::uninit().assume_init() };
-        let mut r = Self { data: v, vec };
+    pub fn new_array(data: [E; N]) -> Self {
+        Self::new(data)
+    }
+}
 
-        r.data
-            .iter()
-            .zip(r.vec.iter_mut())
-            .for_each(|(v, b)| *b = unsafe { IoVec::from_ref(v.pos_ref()) });
-        r
+impl<E, const N: usize> IoVectoredBuf for IoVecArray<[E; N], N>
+where
+    E: IoBuf,
+{
+    fn pos_ref(&self) -> &[IoVec] {
+        unsafe {
+            let vec = self.vec.get().as_mut_unchecked();
+
+            self.data
+                .iter()
+                .zip(vec.iter_mut())
+                .for_each(|(e, v)| *v = IoVec::from_ref(e.pos_ref()));
+
+            vec.as_slice()
+        }
     }
 }

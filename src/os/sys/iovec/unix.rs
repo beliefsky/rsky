@@ -2,8 +2,8 @@ use core::{ffi::c_void, mem::MaybeUninit};
 
 pub(crate) const IOVEC_MAX_LEN: usize = usize::MAX;
 
-#[repr(C)]
 #[derive(Clone)]
+#[repr(C)]
 pub(crate) struct IoVec {
     buf: *mut c_void,
     len: usize,

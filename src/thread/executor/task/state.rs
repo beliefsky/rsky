@@ -2,7 +2,6 @@ use core::sync::atomic::{
     AtomicUsize,
     Ordering::{self, *},
 };
-use std::process::abort;
 
 const SCHEDULED: usize = 1 << 0;
 
@@ -120,7 +119,7 @@ impl State {
     pub(crate) fn inc(&self) -> Snapshot {
         let state = Snapshot(self.0.fetch_add(RC_UNIT, Strong::RELEASE));
         if state.count() == RC_MAX {
-            abort()
+            panic!("state count out of max");
         }
         state
     }

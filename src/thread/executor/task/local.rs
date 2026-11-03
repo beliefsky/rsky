@@ -7,7 +7,7 @@ use core::{
 };
 
 use super::{
-    Header, PanicResult,
+    Header,
     state::{Snapshot, Strong, Weak},
 };
 
@@ -42,13 +42,13 @@ impl<'a> Local<'a> {
         }
     }
 
-    pub unsafe fn poll<T>(&self, cx: &mut Context<'_>) -> Poll<Option<PanicResult<T>>> {
+    pub unsafe fn poll<T>(&self, cx: &mut Context<'_>) -> Poll<Option<T>> {
         let state = self.state();
 
         if state.has_result() {
             self.header().state.set_has_result::<Strong, false>();
 
-            let mut res = MaybeUninit::<PanicResult<T>>::uninit();
+            let mut res = MaybeUninit::<T>::uninit();
             let target = NonNull::from_mut(&mut res).cast();
             unsafe { (self.header().vtable.take_result)(self.ptr, target) };
 
@@ -61,7 +61,6 @@ impl<'a> Local<'a> {
 
         if !state.is_completed() {
             return self.header().waker.with_mut(|waker| {
-                super::panic_guard!();
                 let waker = unsafe { &mut *waker };
                 if state.has_waker() {
                     if cx.waker().will_wake(unsafe { waker.assume_init_ref() }) {
