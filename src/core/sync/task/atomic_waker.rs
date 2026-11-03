@@ -1,23 +1,23 @@
 use core::{
     cell::UnsafeCell,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::atomic::{AtomicU8, Ordering},
     task::Waker,
 };
 
 pub struct AtomicWaker {
-    state: AtomicUsize,
     waker: UnsafeCell<Option<Waker>>,
+    state: AtomicU8,
 }
 
 impl AtomicWaker {
-    const WAITING: usize = 0;
-    const REGISTERING: usize = 0b01;
-    const WAKING: usize = 0b10;
+    const WAITING: u8 = 0;
+    const REGISTERING: u8 = 0b01;
+    const WAKING: u8 = 0b10;
 
     pub const fn new() -> Self {
         Self {
-            state: AtomicUsize::new(Self::WAITING),
             waker: UnsafeCell::new(None),
+            state: AtomicU8::new(Self::WAITING),
         }
     }
 

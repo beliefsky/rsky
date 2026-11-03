@@ -1,16 +1,11 @@
 use alloc::rc::Rc;
 use core::{
     cell::RefCell,
-    panic::AssertUnwindSafe,
     pin,
     task::{Context, Poll, Waker},
     time::Duration,
 };
-use std::{
-    io,
-    os::fd::RawFd,
-    panic::{catch_unwind, resume_unwind},
-};
+use std::{io, os::fd::RawFd};
 
 use crate::{
     driver::{OpCode, Proactor, ProactorBuilder},
@@ -58,33 +53,23 @@ impl Runtime {
     pub fn block_on_at<F: Future>(&self, future: F, meta: SpawnMeta) -> F::Output {
         let future = console::instrument_block_on(meta, future);
 
-        let result = catch_unwind(AssertUnwindSafe(|| {
-            self.enter(|| {
-                let waker = self.waker();
-                let mut context = Context::from_waker(&waker);
-                let mut future = pin::pin!(future);
-                loop {
-                    if let Poll::Ready(result) = future.as_mut().poll(&mut context) {
-                        self.run();
-                        return result;
-                    }
-                    let remaining_tasks = self.run();
-                    if remaining_tasks {
-                        self.poll_with(Some(Duration::ZERO));
-                    } else {
-                        self.poll();
-                    }
+        self.enter(|| {
+            let waker = self.waker();
+            let mut context = Context::from_waker(&waker);
+            let mut future = pin::pin!(future);
+            loop {
+                if let Poll::Ready(result) = future.as_mut().poll(&mut context) {
+                    self.run();
+                    return result;
                 }
-            })
-        }));
-
-        match result {
-            Ok(output) => output,
-            Err(payload) => {
-                self.enter(|| self.executor.clear());
-                resume_unwind(payload)
+                let remaining_tasks = self.run();
+                if remaining_tasks {
+                    self.poll_with(Some(Duration::ZERO));
+                } else {
+                    self.poll();
+                }
             }
-        }
+        })
     }
 
     pub fn num_alive_tasks(&self) -> usize {

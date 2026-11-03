@@ -5,16 +5,14 @@ mod state;
 use core::{
     array, hint,
     mem::{ManuallyDrop, MaybeUninit, offset_of},
-    panic::AssertUnwindSafe,
     pin::Pin,
     ptr::{self, NonNull, drop_in_place},
     sync::atomic::{AtomicPtr, Ordering::*},
     task::{Context, Poll, Waker, ready},
 };
-use std::{panic::catch_unwind, thread};
 
 use super::{
-    PanicResult, SendWrapper, Shared, UnsafeCell,
+    SendWrapper, Shared, UnsafeCell,
     console::{SpawnMeta, TaskSpan, WakerOp},
     queue::TaskId,
     task::{
@@ -22,7 +20,6 @@ use super::{
         remote::Remote,
         state::{State, Strong},
     },
-    util::{panic_guard, transpose},
 };
 
 #[repr(transparent)]
@@ -46,7 +43,7 @@ struct Header {
 
 union FutureState<F: Future> {
     future: ManuallyDrop<F>,
-    result: ManuallyDrop<PanicResult<F::Output>>,
+    result: ManuallyDrop<F::Output>,
 }
 
 struct TaskVtable {
@@ -79,11 +76,10 @@ impl<F: Future + 'static> TaskAlloc<F> {
 
         let res = ready!(future_cell.with_mut(|fut_ptr| {
             let fut = unsafe { Pin::new_unchecked(&mut *(*fut_ptr).future) };
-            transpose(catch_unwind(AssertUnwindSafe(|| fut.poll(cx))))
+            fut.poll(cx)
         }));
 
         future_cell.with_mut(|fut_ptr| {
-            panic_guard!();
             unsafe { drop_in_place(fut_ptr as *mut F) };
             let new_state = FutureState {
                 result: ManuallyDrop::new(res),
@@ -98,23 +94,17 @@ impl<F: Future + 'static> TaskAlloc<F> {
         let future_cell = Self::future_cell(header);
 
         future_cell.with(|fut_ptr| {
-            let fut_ptr = fut_ptr as *const PanicResult<F::Output>;
+            let fut_ptr = fut_ptr as *const F::Output;
             unsafe { ptr::copy_nonoverlapping(fut_ptr, target.as_ptr().cast(), 1) };
         });
     }
 
     unsafe fn drop_future(header: NonNull<Header>, has_result: bool) {
-        if thread::panicking() {
-            return;
-        }
-
         let future_cell = Self::future_cell(header);
 
         future_cell.with_mut(|fut_ptr| {
-            super::panic_guard!();
-
             if has_result {
-                unsafe { drop_in_place::<PanicResult<F::Output>>(fut_ptr as _) };
+                unsafe { drop_in_place::<F::Output>(fut_ptr as _) };
             } else {
                 unsafe { drop_in_place::<F>(fut_ptr as _) };
             }
@@ -216,7 +206,7 @@ impl Task {
         })
     }
 
-    pub unsafe fn poll<T>(&self, cx: &mut Context<'_>) -> Poll<Option<PanicResult<T>>> {
+    pub unsafe fn poll<T>(&self, cx: &mut Context<'_>) -> Poll<Option<T>> {
         match self.view() {
             Ok(local) => unsafe { local.poll(cx) },
             Err(remote) => unsafe { remote.poll(cx) },
@@ -229,17 +219,11 @@ impl Task {
 
         header.shared.store(ptr::null_mut(), Release);
 
-        if thread::panicking() {
-            return;
-        }
-
         if !state.is_completed() {
             unsafe { (header.vtable.drop_future)(self.0, false) };
         }
 
         if state.has_waker() && !state.is_setting_waker() {
-            super::panic_guard!();
-
             header
                 .waker
                 .with_mut(|ptr| unsafe { drop_in_place(ptr.cast::<Waker>()) });
@@ -280,13 +264,6 @@ impl Drop for Task {
         if state.count() > 1 {
             return;
         };
-
-        if thread::panicking() {
-            unsafe { (header.vtable.dealloc)(self.0) }
-            return;
-        }
-
-        super::panic_guard!();
 
         if state.has_result() {
             unsafe { (header.vtable.drop_future)(self.0, true) };

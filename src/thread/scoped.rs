@@ -20,7 +20,6 @@ pub struct ScopedKey<T> {
     inner: &'static LocalKey<Cell<*const ()>>,
     _marker: marker::PhantomData<T>,
 }
-
 impl<T> ScopedKey<T> {
     pub const unsafe fn new(inner: &'static LocalKey<Cell<*const ()>>) -> Self {
         Self {

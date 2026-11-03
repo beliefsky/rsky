@@ -7,7 +7,7 @@ use core::{
 };
 
 use super::{
-    Header, PanicResult,
+    Header,
     state::{Snapshot, Strong},
 };
 
@@ -39,8 +39,6 @@ impl<'a> Remote<'a> {
             return;
         };
 
-        super::panic_guard!(skip_if_unwinding);
-
         shared.pending.fetch_add(1, Ordering::Release);
 
         shared.sync.push(self.header().id);
@@ -51,14 +49,14 @@ impl<'a> Remote<'a> {
         self.header().state.finish_scheduling();
     }
 
-    pub unsafe fn poll<T>(&self, cx: &mut Context<'_>) -> Poll<Option<PanicResult<T>>> {
+    pub unsafe fn poll<T>(&self, cx: &mut Context<'_>) -> Poll<Option<T>> {
         let mut state = self.state();
 
         loop {
             if state.has_result() {
                 self.header().state.set_has_result::<Strong, false>();
 
-                let mut res = MaybeUninit::<PanicResult<T>>::uninit();
+                let mut res = MaybeUninit::<T>::uninit();
                 let target = NonNull::from_mut(&mut res).cast();
                 unsafe { (self.header().vtable.take_result)(self.ptr, target) };
 
@@ -88,8 +86,6 @@ impl<'a> Remote<'a> {
             }
 
             self.header().waker.with_mut(|ptr| {
-                super::panic_guard!();
-
                 let waker = unsafe { &mut *ptr };
 
                 if state.has_waker() {
