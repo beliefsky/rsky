@@ -2,8 +2,8 @@ use core::{ffi::c_void, ptr};
 
 use super::super::{IoVec, Socklen};
 
-#[repr(C)]
 #[derive(Clone)]
+#[repr(C)]
 pub(crate) struct MsgHdr {
     msg_name: *mut c_void,
     msg_namelen: Socklen,

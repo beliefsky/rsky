@@ -119,6 +119,9 @@ async fn test_rsky_conn(conn: &mut TcpStream) -> io::Result<()> {
 
         let vec = rsky::io::IoVecArray::new_arg2(a, content);
         let (res, _) = conn.write_vectored(vec).await.into();
+        if res.is_err() {
+            println!("nimei");
+        }
 
         // let (res, _) = conn.write(a).await.into();
         res?;

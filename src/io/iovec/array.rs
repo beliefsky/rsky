@@ -30,11 +30,14 @@ where
     E2: IoBuf,
 {
     pub fn new_arg2(v1: E1, v2: E2) -> Self {
-        let vec = unsafe { [IoVec::from_ref(v1.pos_ref()), IoVec::from_ref(v2.pos_ref())] };
-        Self {
-            data: (v1, v2),
-            vec: vec,
-        }
+        let data = (v1, v2);
+        let vec = unsafe {
+            [
+                IoVec::from_ref(data.0.pos_ref()),
+                IoVec::from_ref(data.1.pos_ref()),
+            ]
+        };
+        Self { data, vec }
     }
 }
 
@@ -45,17 +48,15 @@ where
     E3: IoBuf,
 {
     pub fn new_arg3(v1: E1, v2: E2, v3: E3) -> Self {
+        let data = (v1, v2, v3);
         let vec = unsafe {
             [
-                IoVec::from_ref(v1.pos_ref()),
-                IoVec::from_ref(v2.pos_ref()),
-                IoVec::from_ref(v3.pos_ref()),
+                IoVec::from_ref(data.0.pos_ref()),
+                IoVec::from_ref(data.1.pos_ref()),
+                IoVec::from_ref(data.2.pos_ref()),
             ]
         };
-        Self {
-            data: (v1, v2, v3),
-            vec: vec,
-        }
+        Self { data, vec }
     }
 }
 
@@ -67,18 +68,16 @@ where
     E4: IoBuf,
 {
     pub fn new_arg4(v1: E1, v2: E2, v3: E3, v4: E4) -> Self {
+        let data = (v1, v2, v3, v4);
         let vec = unsafe {
             [
-                IoVec::from_ref(v1.pos_ref()),
-                IoVec::from_ref(v2.pos_ref()),
-                IoVec::from_ref(v3.pos_ref()),
-                IoVec::from_ref(v4.pos_ref()),
+                IoVec::from_ref(data.0.pos_ref()),
+                IoVec::from_ref(data.1.pos_ref()),
+                IoVec::from_ref(data.2.pos_ref()),
+                IoVec::from_ref(data.3.pos_ref()),
             ]
         };
-        Self {
-            data: (v1, v2, v3, v4),
-            vec: vec,
-        }
+        Self { data, vec }
     }
 }
 
