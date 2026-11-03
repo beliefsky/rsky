@@ -1,4 +1,3 @@
-use super::super::IoVecArray;
 use crate::os::io::IoVec;
 use alloc::{rc::Rc, sync::Arc};
 
@@ -38,13 +37,6 @@ impl<B: IoVectoredBuf + ?Sized + 'static> IoVectoredBuf for Arc<B> {
     #[inline]
     fn pos_ref(&self) -> &[IoVec] {
         (**self).pos_ref()
-    }
-}
-
-impl<E: 'static, const N: usize> IoVectoredBuf for IoVecArray<E, N> {
-    #[inline]
-    fn pos_ref(&self) -> &[IoVec] {
-        self.vec_slice()
     }
 }
 

@@ -167,6 +167,7 @@ where
     B: IoVectoredBufMut,
 {
     fn create_entry(&mut self) -> OpEntry {
+        self.msg.set_vec_mut(self.buffer.spare_mut());
         opcode::RecvMsg::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
             self.msg.as_ptr_mut() as _,
@@ -183,6 +184,7 @@ where
     B: IoVectoredBuf,
 {
     fn create_entry(&mut self) -> OpEntry {
+        self.msg.set_vec_ref(self.buffer.pos_ref());
         opcode::SendMsg::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
             self.msg.as_ptr() as _,
