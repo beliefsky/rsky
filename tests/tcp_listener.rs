@@ -1,5 +1,5 @@
 use core::net::SocketAddr;
-use rsky::error::Error;
+use rsky::io::error::Error;
 use rsky::net::TcpListener;
 use rsky::net::TcpStream;
 use rsky::os::net::Shutdown;

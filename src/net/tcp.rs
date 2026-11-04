@@ -1,6 +1,8 @@
 use crate::{
-    error::Error,
-    io::{AsyncRead, AsyncWrite, BufResult, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
+    io::{
+        AsyncRead, AsyncWrite, BufResult, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut,
+        error::Error,
+    },
     net::Socket,
     os::net::{
         Protocol, RecvFlags, SendFlags, Shutdown, SockAddrArgs, SockAddrArgsMut, SocketType,

@@ -9,7 +9,7 @@ pub use fd::*;
 pub use key::Key;
 pub use sys::*;
 
-use crate::{error::Error, io::BufResult};
+use crate::io::{BufResult, error::Error};
 use core::{
     task::{Poll, Waker},
     time::Duration,

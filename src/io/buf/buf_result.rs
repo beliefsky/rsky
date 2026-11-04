@@ -1,4 +1,4 @@
-use crate::error::Error;
+use super::super::error::Error;
 
 use super::IntoInner;
 

@@ -19,6 +19,12 @@ impl Error {
         }
     }
 
+    pub fn simple_message(kind: ErrorKind, msg: &'static str) -> Self {
+        Self {
+            inner: Inner::SimpleMessage((kind, msg)),
+        }
+    }
+
     pub fn other<T: error::Error + 'static>(error: T) -> Self {
         Self {
             inner: Inner::Other(Box::new(error)),
@@ -29,6 +35,7 @@ impl Error {
         match self.inner {
             Inner::Os(errno) => os_error_kind(errno),
             Inner::Simple(kind) => kind,
+            Inner::SimpleMessage(v) => v.0,
             _ => ErrorKind::Other,
         }
     }
@@ -54,6 +61,7 @@ impl fmt::Debug for Error {
         match &self.inner {
             Inner::Os(errno) => write!(f, "{}", os_error_msg(*errno)),
             Inner::Simple(e) => write!(f, "{}", e.as_str()),
+            Inner::SimpleMessage(v) => write!(f, "{}", v.1),
             Inner::Other(e) => fmt::Debug::fmt(e, f),
         }
     }
@@ -64,6 +72,7 @@ impl fmt::Display for Error {
         match &self.inner {
             Inner::Os(errno) => write!(f, "{}", os_error_msg(*errno)),
             Inner::Simple(e) => write!(f, "{}", e.as_str()),
+            Inner::SimpleMessage(v) => write!(f, "{}", v.1),
             Inner::Other(e) => fmt::Display::fmt(e, f),
         }
     }
@@ -171,5 +180,6 @@ impl ErrorKind {
 enum Inner {
     Os(u32),
     Simple(ErrorKind),
+    SimpleMessage((ErrorKind, &'static str)),
     Other(Box<dyn error::Error>),
 }

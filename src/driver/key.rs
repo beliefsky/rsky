@@ -12,8 +12,7 @@ use thin_cell::unsync::{Inner, Ref, ThinCell, Weak};
 
 use crate::{
     driver::{Carry, Extra, OpCode, OpEntry, PushEntry, control::Carrier},
-    error::Error,
-    io::{BufResult, IntoInner},
+    io::{BufResult, IntoInner, error::Error},
 };
 
 #[repr(transparent)]

@@ -8,8 +8,7 @@ use super::{
 };
 use crate::{
     driver::{Extra, OpCode, OpEntry},
-    error::Error,
-    io::{IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
+    io::{IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut, error::Error},
     os::net::{self, MsgHdr, SockAddrArgs, SockAddrArgsMut},
 };
 

@@ -1,5 +1,5 @@
-use super::sys;
-use crate::{error::ErrorKind, os::sys::sys_errno_msg};
+use super::sys::{self, sys_errno_msg};
+use crate::io::error::ErrorKind;
 
 pub fn os_error_kind(errno: u32) -> ErrorKind {
     match errno {

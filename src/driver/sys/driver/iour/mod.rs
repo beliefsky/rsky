@@ -20,8 +20,7 @@ use slotmap::{DefaultKey, SlotMap};
 
 use crate::{
     driver::{ProactorBuilder, key::ErasedKey, sys::extra::IourExtra},
-    error::Error,
-    error::ErrorKind,
+    io::error::{Error, ErrorKind},
 };
 use io_uring::{
     EnterFlags, IoUring,
