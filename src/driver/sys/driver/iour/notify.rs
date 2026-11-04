@@ -1,7 +1,8 @@
 use alloc::{sync::Arc, task::Wake};
 use core::task::Waker;
 
-use crate::{driver::sys::driver::AwakeFlag, error::Error};
+use super::super::AwakeFlag;
+use crate::io::error::Error;
 
 #[repr(transparent)]
 pub(super) struct Notifier {

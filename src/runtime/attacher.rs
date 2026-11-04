@@ -1,7 +1,7 @@
 use core::ops::Deref;
 use std::os::fd::{AsFd, AsRawFd};
 
-use crate::{driver::SharedFd, error::Error, io::IntoInner, runtime::Runtime};
+use crate::{driver::SharedFd, io::IntoInner, io::error::Error, runtime::Runtime};
 
 #[repr(transparent)]
 pub(crate) struct Attacher<S> {

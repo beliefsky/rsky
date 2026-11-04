@@ -9,8 +9,7 @@ use std::os::fd::RawFd;
 
 use crate::{
     driver::{OpCode, Proactor, ProactorBuilder},
-    error::Error,
-    error::ErrorKind,
+    io::error::{Error, ErrorKind},
     scoped_thread_local,
     thread::{Executor, ExecutorConfig, JoinHandle, SpawnMeta, console},
 };

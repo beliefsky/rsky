@@ -8,8 +8,10 @@ use crate::{
             SendVectored, ShutdownSocket,
         },
     },
-    error::{Error, ErrorKind},
-    io::{BufResult, IntoInner, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
+    io::{
+        BufResult, IntoInner, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut,
+        error::{Error, ErrorKind},
+    },
     os::net::{
         AddressFamily, Protocol, RecvFlags, SendFlags, Shutdown, SockAddrArgs, SockAddrArgsMut,
         SocketType,

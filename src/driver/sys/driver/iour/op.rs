@@ -1,7 +1,7 @@
 use super::SEntry;
 use crate::{
     driver::{Extra, control::Carrier},
-    error::Error,
+    io::error::Error,
 };
 
 pub enum OpEntry {

@@ -1,4 +1,4 @@
-use crate::error::Error;
+use super::error::Error;
 
 use super::{BufResult, IoBuf, IoVectoredBuf};
 

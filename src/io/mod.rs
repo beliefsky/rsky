@@ -1,5 +1,6 @@
 mod buf;
 mod bytes;
+pub mod error;
 mod iovec;
 mod read;
 mod write;
