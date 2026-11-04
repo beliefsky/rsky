@@ -145,19 +145,3 @@ build_errno! {
     (ENOMEDIUM,123,"No medium found");
     (EMEDIUMTYPE,124,"Wrong medium type");
 }
-
-// pub(crate) const EPERM: u32 = 1;
-// pub(crate) const EAGAIN: u32 = 2;
-// pub(crate) const EAGAIN: u32 = 11;
-// pub(crate) const EAGAIN: u32 = 11;
-// pub(crate) const EBUSY: u32 = 16;
-
-// #[cfg(target_arch = "x86_64")]
-// pub(crate) use x86_64::*;
-
-// #[cfg(target_arch = "x86_64")]
-// mod x86_64 {
-//     pub(crate) const ETIME: u32 = 62;
-//     pub(crate) const EADDRINUSE: u32 = 98;
-//     pub(crate) const ENOBUFS: u32 = 105;
-// }
