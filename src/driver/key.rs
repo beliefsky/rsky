@@ -7,13 +7,13 @@ use core::{
     ptr,
     task::Waker,
 };
-use std::io;
 
 use thin_cell::unsync::{Inner, Ref, ThinCell, Weak};
 
 use crate::{
-    driver::{Extra, OpCode, OpEntry, PushEntry},
-    io::BufResult,
+    driver::{Carry, Extra, OpCode, OpEntry, PushEntry, control::Carrier},
+    error::Error,
+    io::{BufResult, IntoInner},
 };
 
 #[repr(transparent)]
@@ -71,7 +71,7 @@ impl<T> DerefMut for Key<T> {
 #[derive(Clone)]
 #[repr(transparent)]
 pub struct ErasedKey {
-    inner: ThinCell<RawOp<dyn OpCode>>,
+    inner: ThinCell<RawOp<dyn Carry>>,
 }
 
 impl ErasedKey {
@@ -80,11 +80,12 @@ impl ErasedKey {
             extra,
             cancelled: false,
             result: PushEntry::Pending(None),
-            op,
+            carrier: Carrier::new(op),
         };
-        let inner = ThinCell::new(raw_op);
+        let mut inner = ThinCell::new(raw_op);
+        unsafe { inner.borrow_unchecked().carrier.init() };
         Self {
-            inner: unsafe { inner.unsize(|p| p as *const Inner<RawOp<dyn OpCode>>) },
+            inner: unsafe { inner.unsize(|p| p as *const Inner<RawOp<dyn Carry>>) },
         }
     }
 
@@ -108,7 +109,7 @@ impl ErasedKey {
     }
 
     #[inline]
-    pub(crate) fn borrow(&self) -> Ref<'_, RawOp<dyn OpCode>> {
+    pub(crate) fn borrow(&self) -> Ref<'_, RawOp<dyn Carry>> {
         self.inner.borrow()
     }
 
@@ -125,11 +126,11 @@ impl ErasedKey {
         self.borrow().result.is_ready()
     }
 
-    pub(crate) fn set_result(&self, res: io::Result<usize>) {
+    pub(crate) fn set_result(&self, res: Result<usize, Error>) {
         let mut this = self.borrow();
         {
-            let RawOp { extra, op, .. } = &mut *this;
-            unsafe { op.set_result(&res, extra) };
+            let RawOp { extra, carrier, .. } = &mut *this;
+            unsafe { carrier.set_result(&res, extra) };
         }
         if let PushEntry::Pending(Some(w)) = mem::replace(&mut this.result, PushEntry::Ready(res)) {
             w.wake();
@@ -137,10 +138,10 @@ impl ErasedKey {
     }
 
     unsafe fn take_result<T: OpCode>(self) -> BufResult<usize, T> {
-        let this = unsafe { self.inner.downcast_unchecked::<RawOp<T>>() };
-        let raw_op = this.try_unwrap().map_err(|_| ()).expect("Key not unique");
-        let res = raw_op.result.take_ready().expect("Result not ready");
-        BufResult::new(res, raw_op.op)
+        let this = unsafe { self.inner.downcast_unchecked::<RawOp<Carrier<T>>>() };
+        let op = this.try_unwrap().map_err(|_| ()).expect("Key not unique");
+        let res = op.result.take_ready().expect("Result not ready");
+        BufResult::new(res, op.carrier.into_inner())
     }
 
     pub(crate) fn swap_extra(&self, extra: Extra) -> Extra {
@@ -177,26 +178,29 @@ impl Hash for ErasedKey {
 impl Unpin for ErasedKey {}
 
 #[repr(C)]
-pub(crate) struct RawOp<P: OpCode + ?Sized> {
+pub(crate) struct RawOp<C: ?Sized> {
     extra: Extra,
     cancelled: bool,
-    result: PushEntry<Option<Waker>, io::Result<usize>>,
-    pub(crate) op: P,
+    result: PushEntry<Option<Waker>, Result<usize, Error>>,
+    pub(crate) carrier: C,
 }
 
-impl<P: OpCode + ?Sized> RawOp<P> {
+impl<C: ?Sized> RawOp<C> {
     pub fn extra_mut(&mut self) -> &mut Extra {
         &mut self.extra
     }
+}
+
+impl<C: Carry + ?Sized> RawOp<C> {
     pub fn create_entry(&mut self) -> OpEntry {
-        self.op.create_entry().with_extra(&self.extra)
+        self.carrier.create_entry().with_extra(&self.extra)
     }
 }
 
 #[derive(Clone)]
 #[repr(transparent)]
 pub(crate) struct WeakKey {
-    inner: Weak<RawOp<dyn OpCode>>,
+    inner: Weak<RawOp<dyn Carry>>,
 }
 
 impl WeakKey {

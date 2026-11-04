@@ -1,7 +1,8 @@
-use std::io;
-
 use super::SEntry;
-use crate::driver::Extra;
+use crate::{
+    driver::{Extra, control::Carrier},
+    error::Error,
+};
 
 pub enum OpEntry {
     /// This operation creates an io-uring submission entry.
@@ -15,7 +16,6 @@ impl OpEntry {
                 if let Some(personality) = extra.get_personality() {
                     entry = entry.personality(personality);
                 }
-                // Set the union of two flags - it will not remove previous flags set by the Op
                 entry.flags(extra.get_sqe_flags())
             }),
         }
@@ -29,8 +29,29 @@ impl From<SEntry> for OpEntry {
 }
 
 pub unsafe trait OpCode {
-    /// Create submission entry.
+    type Control: Default;
+
+    unsafe fn init(&mut self, _: &mut Self::Control) {}
+
+    fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry;
+
+    unsafe fn set_result(&mut self, _: &mut Self::Control, _: &Result<usize, Error>, _: &Extra) {}
+}
+
+pub(crate) trait Carry {
     fn create_entry(&mut self) -> OpEntry;
 
-    unsafe fn set_result(&mut self, _: &io::Result<usize>, _: &Extra) {}
+    unsafe fn set_result(&mut self, _: &Result<usize, Error>, _: &Extra);
+}
+
+impl<T: OpCode> Carry for Carrier<T> {
+    fn create_entry(&mut self) -> OpEntry {
+        let (op, control) = self.inner_mut();
+        op.create_entry(control)
+    }
+
+    unsafe fn set_result(&mut self, result: &Result<usize, Error>, extra: &Extra) {
+        let (op, control) = self.inner_mut();
+        unsafe { OpCode::set_result(op, control, result, extra) }
+    }
 }

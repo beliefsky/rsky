@@ -1,13 +1,13 @@
 use core::net::SocketAddr;
+use rsky::error::Error;
 use rsky::net::TcpListener;
 use rsky::net::TcpStream;
 use rsky::os::net::Shutdown;
 use rsky::os::net::SockAddr;
 use rsky::runtime;
-use std::io;
 
 #[test]
-fn test_rsky() -> io::Result<()> {
+fn test_rsky() -> Result<(), Error> {
     let runtime = runtime::Runtime::new()?;
     println!("hello world");
 
@@ -75,7 +75,7 @@ impl std::future::Future for TestSync {
     }
 }
 
-async fn test_rsky_ser() -> io::Result<()> {
+async fn test_rsky_ser() -> Result<(), Error> {
     let addr = SockAddr::from(SocketAddr::from(([127, 0, 0, 1], 3000)));
 
     let listener = TcpListener::bind(addr).await?;
@@ -98,7 +98,7 @@ async fn test_rsky_ser() -> io::Result<()> {
     }
 }
 
-async fn test_rsky_conn(conn: &mut TcpStream) -> io::Result<()> {
+async fn test_rsky_conn(conn: &mut TcpStream) -> Result<(), Error> {
     let mut read_buf = Vec::with_capacity(4096);
     loop {
         let (res, buf) = conn.read(read_buf).await.into();
@@ -129,5 +129,5 @@ async fn test_rsky_conn(conn: &mut TcpStream) -> io::Result<()> {
         // println!("发送数据字节数：{}", n);
     }
 
-    conn.shutdown(Shutdown::BOTH).await
+    conn.shutdown(Shutdown::WRITE).await
 }

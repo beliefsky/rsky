@@ -1,8 +1,7 @@
 use alloc::{sync::Arc, task::Wake};
 use core::task::Waker;
-use std::io;
 
-use crate::driver::sys::driver::AwakeFlag;
+use crate::{driver::sys::driver::AwakeFlag, error::Error};
 
 #[repr(transparent)]
 pub(super) struct Notifier {
@@ -10,7 +9,7 @@ pub(super) struct Notifier {
 }
 
 impl Notifier {
-    pub fn new() -> io::Result<Self> {
+    pub fn new() -> Result<Self, Error> {
         Ok(Self {
             notify: Arc::new(Notify::new()),
         })

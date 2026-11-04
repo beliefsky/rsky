@@ -1,4 +1,5 @@
 mod cancel;
+mod control;
 mod fd;
 mod key;
 mod sys;
@@ -8,12 +9,12 @@ pub use fd::*;
 pub use key::Key;
 pub use sys::*;
 
-use crate::io::BufResult;
+use crate::{error::Error, io::BufResult};
 use core::{
     task::{Poll, Waker},
     time::Duration,
 };
-use std::{io, os::fd::RawFd};
+use std::os::fd::RawFd;
 
 pub enum PushEntry<K, R> {
     Pending(K),
@@ -52,7 +53,7 @@ pub struct Proactor {
 }
 
 impl Proactor {
-    pub fn new() -> io::Result<Self> {
+    pub fn new() -> Result<Self, Error> {
         Self::builder().build()
     }
 
@@ -60,7 +61,7 @@ impl Proactor {
         ProactorBuilder::new()
     }
 
-    pub fn with_builder(builder: &ProactorBuilder) -> io::Result<Self> {
+    pub fn with_builder(builder: &ProactorBuilder) -> Result<Self, Error> {
         Ok(Self {
             driver: Driver::new(builder)?,
         })
@@ -69,7 +70,7 @@ impl Proactor {
     pub fn default_extra(&self) -> Extra {
         Extra::new(&self.driver)
     }
-    pub fn attach(&mut self, fd: RawFd) -> io::Result<()> {
+    pub fn attach(&mut self, fd: RawFd) -> Result<(), Error> {
         self.driver.attach(fd)
     }
 
@@ -95,7 +96,7 @@ impl Proactor {
         }
     }
 
-    pub fn poll(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+    pub fn poll(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
         self.driver.poll(timeout)
     }
 
@@ -183,7 +184,7 @@ impl ProactorBuilder {
         }
     }
 
-    pub fn build(&self) -> io::Result<Proactor> {
+    pub fn build(&self) -> Result<Proactor, Error> {
         Proactor::with_builder(self)
     }
 }
