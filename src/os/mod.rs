@@ -1,4 +1,5 @@
 mod sys;
 
+pub mod error;
 pub mod io;
 pub mod net;

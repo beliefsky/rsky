@@ -10,13 +10,19 @@ use std::{
 };
 
 mod notify;
+mod op;
+
+pub use op::*;
+
 use notify::Notifier;
 
-mod op;
-pub use op::*;
 use slotmap::{DefaultKey, SlotMap};
 
-use crate::driver::{ProactorBuilder, key::ErasedKey, sys::extra::IourExtra};
+use crate::{
+    driver::{ProactorBuilder, key::ErasedKey, sys::extra::IourExtra},
+    error::Error,
+    error::ErrorKind,
+};
 use io_uring::{
     EnterFlags, IoUring,
     opcode::AsyncCancel,
@@ -64,7 +70,7 @@ impl Driver {
     const IOUR_CANCEL: u64 = u64::MAX;
     const IOUR_NOTIFY: u64 = u64::MAX - 1;
 
-    pub fn new(builder: &ProactorBuilder) -> io::Result<Self> {
+    pub fn new(builder: &ProactorBuilder) -> Result<Self, Error> {
         let notifier = Notifier::new()?;
         let mut iour_builder = IoUring::builder();
         if let Some(sqpoll_idle) = builder.sqpoll_idle {
@@ -90,7 +96,10 @@ impl Driver {
         }
         iour_builder.dontfork();
 
-        let inner = iour_builder.build(builder.capacity)?;
+        let inner = match iour_builder.build(builder.capacity) {
+            Ok(v) => v,
+            Err(e) => return Err(Error::other(e)),
+        };
 
         let mut flags = DriverFlags::NEED_PUSH_NOTIFIER;
         flags.set(
@@ -107,7 +116,7 @@ impl Driver {
         })
     }
 
-    pub fn poll(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+    pub fn poll(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
         let need_wait = !self.notifier.reset();
 
         if self.flags.contains(DriverFlags::NEED_PUSH_NOTIFIER) {
@@ -128,11 +137,11 @@ impl Driver {
         IourExtra::new()
     }
 
-    pub fn attach(&mut self, _fd: RawFd) -> io::Result<()> {
+    pub fn attach(&mut self, _fd: RawFd) -> Result<(), Error> {
         Ok(())
     }
 
-    pub fn push(&mut self, key: ErasedKey) -> Poll<io::Result<usize>> {
+    pub fn push(&mut self, key: ErasedKey) -> Poll<Result<usize, Error>> {
         let op_entry = key.borrow().create_entry();
         match op_entry {
             OpEntry::Submission(entry) => {
@@ -164,7 +173,7 @@ impl Driver {
         self.notifier.waker()
     }
 
-    fn submit_auto(&mut self, timeout: Option<Duration>, need_wait: bool) -> io::Result<()> {
+    fn submit_auto(&mut self, timeout: Option<Duration>, need_wait: bool) -> Result<(), Error> {
         let want_sqe = if !need_wait || self.inner.submission().taskrun() {
             0
         } else {
@@ -179,15 +188,15 @@ impl Driver {
         match res {
             Ok(_) => {
                 if want_sqe > 0 && self.inner.completion().is_empty() {
-                    Err(io::ErrorKind::TimedOut.into())
+                    Err(Error::simple(ErrorKind::TimedOut))
                 } else {
                     Ok(())
                 }
             }
             Err(e) => match e.raw_os_error() {
-                // Some(libc::ETIME) => Err(io::ErrorKind::TimedOut.into()),
-                // Some(libc::EBUSY) | Some(libc::EAGAIN) => Err(io::ErrorKind::Interrupted.into()),
-                _ => Err(e),
+                // todo
+                Some(code) => Err(Error::errno(code as u32)),
+                _ => Err(Error::other(e)),
             },
         }
     }
@@ -258,7 +267,7 @@ impl Driver {
         has_entry
     }
 
-    fn push_raw_with_key(&mut self, entry: SEntry, key: ErasedKey) -> io::Result<()> {
+    fn push_raw_with_key(&mut self, entry: SEntry, key: ErasedKey) -> Result<(), Error> {
         let user_data = key.as_raw();
         let entry = entry.user_data(user_data as _);
         self.push_raw(entry)?;
@@ -269,7 +278,7 @@ impl Driver {
         Ok(())
     }
 
-    fn push_raw(&mut self, entry: SEntry) -> io::Result<()> {
+    fn push_raw(&mut self, entry: SEntry) -> Result<(), Error> {
         loop {
             let mut squeue = self.inner.submission();
             match unsafe { squeue.push(&entry) } {
@@ -282,12 +291,12 @@ impl Driver {
                     drop(squeue);
                     match self.submit_auto(Some(Duration::ZERO), true) {
                         Ok(()) => {}
-                        Err(e)
-                            if matches!(
-                                e.kind(),
-                                io::ErrorKind::TimedOut | io::ErrorKind::Interrupted
-                            ) => {}
-                        Err(e) => return Err(e),
+                        Err(e) => match e.kind() {
+                            ErrorKind::TimedOut
+                            | ErrorKind::Interrupted
+                            | ErrorKind::ResourceBusy => {}
+                            _ => return Err(e),
+                        },
                     }
                     // 提交后直接处理完成的列队
                     if self.poll_entries() {
@@ -326,12 +335,12 @@ impl Drop for Driver {
 
 pub(crate) struct Entry {
     key: ErasedKey,
-    result: io::Result<usize>,
+    result: Result<usize, Error>,
     flags: u32,
 }
 
 impl Entry {
-    pub(crate) fn new(key: ErasedKey, result: io::Result<usize>) -> Self {
+    pub(crate) fn new(key: ErasedKey, result: Result<usize, Error>) -> Self {
         Self {
             key,
             result,
@@ -359,18 +368,9 @@ fn create_entry(cq_entry: CEntry) -> Entry {
     entry
 }
 
-fn create_result(result: i32) -> io::Result<usize> {
-    const ERR_ENOBUFS: i32 = -105;
-
+fn create_result(result: i32) -> Result<usize, Error> {
     if result < 0 {
-        if result == ERR_ENOBUFS {
-            Err(io::Error::new(
-                io::ErrorKind::ResourceBusy,
-                "buffer ring has no available buffer",
-            ))
-        } else {
-            Err(io::Error::from_raw_os_error(-result))
-        }
+        Err(Error::errno((-result) as u32))
     } else {
         Ok(result as _)
     }

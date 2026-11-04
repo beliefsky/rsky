@@ -1,5 +1,6 @@
+use crate::error::Error;
+
 use super::{BufResult, IoBuf, IoVectoredBuf};
-use std::io;
 
 pub trait AsyncWrite {
     fn write<B: IoBuf>(&mut self, buf: B) -> impl Future<Output = BufResult<usize, B>>;
@@ -9,7 +10,7 @@ pub trait AsyncWrite {
         buf: B,
     ) -> impl Future<Output = BufResult<usize, B>>;
 
-    fn flush(&mut self) -> impl Future<Output = io::Result<()>>;
+    fn flush(&mut self) -> impl Future<Output = Result<(), Error>>;
 }
 
 impl<A: AsyncWrite + ?Sized> AsyncWrite for &mut A {
@@ -27,7 +28,7 @@ impl<A: AsyncWrite + ?Sized> AsyncWrite for &mut A {
     }
 
     #[inline]
-    fn flush(&mut self) -> impl Future<Output = io::Result<()>> {
+    fn flush(&mut self) -> impl Future<Output = Result<(), Error>> {
         (**self).flush()
     }
 }
@@ -47,7 +48,7 @@ impl<A: AsyncWrite + ?Sized> AsyncWrite for Box<A> {
     }
 
     #[inline]
-    fn flush(&mut self) -> impl Future<Output = io::Result<()>> {
+    fn flush(&mut self) -> impl Future<Output = Result<(), Error>> {
         (**self).flush()
     }
 }

@@ -4,8 +4,8 @@ use std::os::fd::{AsFd, OwnedFd};
 use crate::{
     io::{IntoInner, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
     os::net::{
-        AddressFamily, MsgHdr, Protocol, RecvFlags, SendFlags, Shutdown, SockAddrArgs,
-        SockAddrArgsMut, SocketType,
+        AddressFamily, Protocol, RecvFlags, SendFlags, Shutdown, SockAddrArgs, SockAddrArgsMut,
+        SocketType,
     },
 };
 
@@ -230,7 +230,6 @@ where
     pub(crate) fd: F,
     pub(crate) buffer: B,
     pub(crate) flags: RecvFlags,
-    pub(crate) msg: MsgHdr,
 }
 
 impl<F, B> RecvVectored<F, B>
@@ -239,12 +238,7 @@ where
     B: IoVectoredBufMut,
 {
     pub fn new(fd: F, buffer: B, flags: RecvFlags) -> Self {
-        Self {
-            fd,
-            buffer,
-            flags,
-            msg: MsgHdr::new(),
-        }
+        Self { fd, buffer, flags }
     }
 }
 
@@ -268,7 +262,6 @@ where
     pub(crate) fd: F,
     pub(crate) buffer: B,
     pub(crate) flags: SendFlags,
-    pub(crate) msg: MsgHdr,
 }
 
 impl<F, B> SendVectored<F, B>
@@ -277,12 +270,7 @@ where
     B: IoVectoredBuf,
 {
     pub fn new(fd: F, buffer: B, flags: SendFlags) -> Self {
-        Self {
-            fd,
-            buffer,
-            flags,
-            msg: MsgHdr::new(),
-        }
+        Self { fd, buffer, flags }
     }
 }
 

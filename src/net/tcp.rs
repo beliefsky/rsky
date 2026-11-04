@@ -1,6 +1,5 @@
-use std::io;
-
 use crate::{
+    error::Error,
     io::{AsyncRead, AsyncWrite, BufResult, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
     net::Socket,
     os::net::{
@@ -15,7 +14,7 @@ pub struct TcpListener {
 }
 
 impl TcpListener {
-    pub async fn bind<A: SockAddrArgs>(addr: A) -> io::Result<Self> {
+    pub async fn bind<A: SockAddrArgs>(addr: A) -> Result<Self, Error> {
         let socket =
             Socket::new(addr.addr_family(), SocketType::STREAM, Some(Protocol::TCP)).await?;
 
@@ -28,17 +27,17 @@ impl TcpListener {
     }
 
     #[inline(always)]
-    pub async fn accept<A: SockAddrArgsMut>(&self, addr: A) -> io::Result<(TcpStream, A)> {
+    pub async fn accept<A: SockAddrArgsMut>(&self, addr: A) -> Result<(TcpStream, A), Error> {
         let (socket, addr) = self.inner.accept(addr).await?;
         Ok((TcpStream { inner: socket }, addr))
     }
 
     #[inline(always)]
-    pub fn close(self) -> impl Future<Output = io::Result<()>> {
+    pub fn close(self) -> impl Future<Output = Result<(), Error>> {
         self.inner.close()
     }
 
-    async fn bind_with_opt<A: SockAddrArgs>(socket: &Socket, addr: A) -> io::Result<()> {
+    async fn bind_with_opt<A: SockAddrArgs>(socket: &Socket, addr: A) -> Result<(), Error> {
         // 待处理配置, set_reuse_address
 
         socket.bind(addr).await?;
@@ -53,7 +52,7 @@ pub struct TcpStream {
 }
 
 impl TcpStream {
-    pub async fn connect<A: SockAddrArgs>(addr: A) -> io::Result<Self> {
+    pub async fn connect<A: SockAddrArgs>(addr: A) -> Result<Self, Error> {
         let socket =
             Socket::new(addr.addr_family(), SocketType::STREAM, Some(Protocol::TCP)).await?;
 
@@ -66,12 +65,12 @@ impl TcpStream {
     }
 
     #[inline]
-    pub async fn shutdown(&self, how: Shutdown) -> io::Result<()> {
+    pub async fn shutdown(&self, how: Shutdown) -> Result<(), Error> {
         self.inner.shutdown(how).await
     }
 
     #[inline]
-    pub fn close(self) -> impl Future<Output = io::Result<()>> {
+    pub fn close(self) -> impl Future<Output = Result<(), Error>> {
         self.inner.close()
     }
 
@@ -166,7 +165,7 @@ impl AsyncWrite for TcpStream {
     }
 
     #[inline]
-    fn flush(&mut self) -> impl Future<Output = io::Result<()>> {
+    fn flush(&mut self) -> impl Future<Output = Result<(), Error>> {
         async { Ok(()) }
     }
 }
@@ -185,7 +184,7 @@ impl AsyncWrite for &TcpStream {
     }
 
     #[inline]
-    fn flush(&mut self) -> impl Future<Output = io::Result<()>> {
+    fn flush(&mut self) -> impl Future<Output = Result<(), Error>> {
         async { Ok(()) }
     }
 }

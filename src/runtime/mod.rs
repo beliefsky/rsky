@@ -5,10 +5,12 @@ use core::{
     task::{Context, Poll, Waker},
     time::Duration,
 };
-use std::{io, os::fd::RawFd};
+use std::os::fd::RawFd;
 
 use crate::{
     driver::{OpCode, Proactor, ProactorBuilder},
+    error::Error,
+    error::ErrorKind,
     scoped_thread_local,
     thread::{Executor, ExecutorConfig, JoinHandle, SpawnMeta, console},
 };
@@ -29,7 +31,7 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub fn new() -> io::Result<Self> {
+    pub fn new() -> Result<Self, Error> {
         Self::builder().build()
     }
 
@@ -92,7 +94,7 @@ impl Runtime {
         self.executor.spawn_at(future, meta)
     }
 
-    pub(crate) fn attach(&self, fd: RawFd) -> io::Result<()> {
+    pub(crate) fn attach(&self, fd: RawFd) -> Result<(), Error> {
         self.driver.borrow_mut().attach(fd)
     }
 
@@ -123,7 +125,7 @@ impl Runtime {
         match driver.poll(timeout) {
             Ok(()) => {}
             Err(e) => match e.kind() {
-                io::ErrorKind::TimedOut | io::ErrorKind::Interrupted => {}
+                ErrorKind::TimedOut | ErrorKind::Interrupted => {}
                 _ => panic!("{e:?}"),
             },
         }
@@ -163,7 +165,7 @@ impl RuntimeBuilder {
         }
     }
 
-    pub fn build(&self) -> io::Result<Runtime> {
+    pub fn build(&self) -> Result<Runtime, Error> {
         let RuntimeBuilder {
             proactor_builder,
             local_queue_size,

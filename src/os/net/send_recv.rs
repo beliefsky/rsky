@@ -57,12 +57,6 @@ pub struct MsgHdr {
 }
 
 impl MsgHdr {
-    pub fn new() -> Self {
-        Self {
-            _inner: sys::MsgHdr::new(),
-        }
-    }
-
     #[inline]
     pub fn set_vec_ref(&mut self, vec: &[IoVec]) {
         let vec = unsafe { &*(vec as *const [IoVec] as *const [sys::IoVec]) };
@@ -82,5 +76,13 @@ impl MsgHdr {
     }
     pub fn as_ptr_mut(&mut self) -> *mut MsgHdr {
         self as _
+    }
+}
+
+impl Default for MsgHdr {
+    fn default() -> Self {
+        Self {
+            _inner: sys::MsgHdr::new(),
+        }
     }
 }
