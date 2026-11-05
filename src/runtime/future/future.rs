@@ -99,17 +99,6 @@ impl<T: OpCode + 'static> Future for Submit<T, ()> {
 
         loop {
             match this.state.take().expect("Cannot poll after ready") {
-                State::Submitted { key, .. } => {
-                    let entry =
-                        super::poll_task(&mut this.driver.borrow_mut(), cx.get_waker(), key);
-                    match entry {
-                        PushEntry::Pending(key) => {
-                            *this.state = Some(State::submitted(key));
-                            return Poll::Pending;
-                        }
-                        PushEntry::Ready(res) => return Poll::Ready(res),
-                    }
-                }
                 State::Idle { op } => {
                     // 首次执行
                     let extra = cx.as_extra(|| this.driver.borrow().default_extra());
@@ -119,6 +108,17 @@ impl<T: OpCode + 'static> Future for Submit<T, ()> {
                         PushEntry::Ready(res) => {
                             return Poll::Ready(res);
                         }
+                    }
+                }
+                State::Submitted { key, .. } => {
+                    let entry =
+                        super::poll_task(&mut this.driver.borrow_mut(), cx.get_waker(), key);
+                    match entry {
+                        PushEntry::Pending(key) => {
+                            *this.state = Some(State::submitted(key));
+                            return Poll::Pending;
+                        }
+                        PushEntry::Ready(res) => return Poll::Ready(res),
                     }
                 }
             }
