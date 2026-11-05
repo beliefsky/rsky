@@ -168,6 +168,10 @@ impl RuntimeBuilder {
         self.proactor_builder = builder;
         self
     }
+    pub fn proactor<F: FnMut(&mut ProactorBuilder)>(&mut self, mut f: F) -> &mut Self {
+        f(&mut self.proactor_builder);
+        self
+    }
 
     pub fn event_interval(&mut self, val: usize) -> &mut Self {
         self.event_interval = val as _;
