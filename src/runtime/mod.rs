@@ -164,16 +164,27 @@ impl RuntimeBuilder {
         }
     }
 
+    pub fn with_proactor(&mut self, builder: ProactorBuilder) -> &mut Self {
+        self.proactor_builder = builder;
+        self
+    }
+
+    pub fn event_interval(&mut self, val: usize) -> &mut Self {
+        self.event_interval = val as _;
+        self
+    }
+
+    pub fn local_queue_size(&mut self, val: usize) -> &mut Self {
+        self.local_queue_size = val;
+        self
+    }
+
     pub fn build(&self) -> Result<Runtime, Error> {
         let RuntimeBuilder {
             proactor_builder,
             local_queue_size,
             event_interval,
         } = self;
-
-        // if !thread_affinity.is_empty() {
-        //     bind_to_cpu_set(thread_affinity);
-        // }
 
         let driver = proactor_builder.build()?;
         let executor = Executor::with_config(ExecutorConfig {

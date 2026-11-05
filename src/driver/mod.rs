@@ -187,4 +187,37 @@ impl ProactorBuilder {
     pub fn build(&self) -> Result<Proactor, Error> {
         Proactor::with_builder(self)
     }
+
+    pub fn capacity(&mut self, capacity: u32) -> &mut Self {
+        self.capacity = capacity;
+        self
+    }
+    pub fn cqsize(&mut self, cqsize: u32) -> &mut Self {
+        self.cqsize = Some(cqsize);
+        self
+    }
+    pub fn sqpoll_idle(&mut self, idle: Duration) -> &mut Self {
+        self.sqpoll_idle = Some(idle);
+        self
+    }
+    pub fn sqpoll_cpu(&mut self, cpu: u32) -> &mut Self {
+        self.sqpoll_cpu = Some(cpu);
+        self
+    }
+    pub fn single_issuer(&mut self, enable: bool) -> &mut Self {
+        self.single_issuer = enable;
+        self
+    }
+    pub fn coop_taskrun(&mut self, enable: bool) -> &mut Self {
+        self.coop_taskrun = enable;
+        self
+    }
+    pub fn taskrun_flag(&mut self, enable: bool) -> &mut Self {
+        self.taskrun_flag = enable;
+        self
+    }
+    pub fn defer_taskrun(&mut self, enable: bool) -> &mut Self {
+        self.defer_taskrun = enable;
+        self
+    }
 }
