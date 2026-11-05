@@ -123,7 +123,12 @@ impl Driver {
             self.flags.remove(DriverFlags::NEED_PUSH_NOTIFIER);
         }
 
-        self.submit_auto(timeout, need_wait)?;
+        if let Err(e) = self.submit_auto(timeout, need_wait) {
+            // Consume as soon as possible when the queue is full
+            if e.kind() != ErrorKind::ResourceBusy {
+                return Err(e);
+            }
+        }
 
         self.notifier.set_awake();
         self.poll_entries();
@@ -193,7 +198,6 @@ impl Driver {
                 }
             }
             Err(e) => match e.raw_os_error() {
-                // todo
                 Some(code) => Err(Error::errno(code as u32)),
                 _ => Err(Error::other(e)),
             },
