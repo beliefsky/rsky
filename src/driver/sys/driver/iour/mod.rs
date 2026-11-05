@@ -247,7 +247,9 @@ impl Driver {
         let has_entry = !cqueue.is_empty();
         for entry in cqueue {
             match entry.user_data() {
-                Self::IOUR_CANCEL => {}
+                Self::IOUR_CANCEL => {
+                    println!("cancel");
+                }
                 Self::IOUR_NOTIFY => {
                     let flags = entry.flags();
                     if !io_uring::cqueue::more(flags) {
@@ -298,6 +300,7 @@ impl Driver {
                             ErrorKind::TimedOut
                             | ErrorKind::Interrupted
                             | ErrorKind::ResourceBusy => {}
+
                             _ => return Err(e),
                         },
                     }
