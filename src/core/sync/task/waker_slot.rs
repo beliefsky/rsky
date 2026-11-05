@@ -4,12 +4,12 @@ use core::{
     task::Waker,
 };
 
-pub struct AtomicWaker {
+pub struct WakerSlot {
     waker: UnsafeCell<Option<Waker>>,
     state: AtomicU8,
 }
 
-impl AtomicWaker {
+impl WakerSlot {
     const WAITING: u8 = 0;
     const REGISTERING: u8 = 0b01;
     const WAKING: u8 = 0b10;
@@ -101,11 +101,11 @@ impl AtomicWaker {
     }
 }
 
-impl Default for AtomicWaker {
+impl Default for WakerSlot {
     fn default() -> Self {
         Self::new()
     }
 }
 
-unsafe impl Send for AtomicWaker {}
-unsafe impl Sync for AtomicWaker {}
+unsafe impl Send for WakerSlot {}
+unsafe impl Sync for WakerSlot {}

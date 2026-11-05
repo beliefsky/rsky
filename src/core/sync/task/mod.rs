@@ -1,3 +1,3 @@
-mod atomic_waker;
+mod waker_slot;
 
-pub use atomic_waker::AtomicWaker;
+pub use waker_slot::WakerSlot;

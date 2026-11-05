@@ -1,4 +1,4 @@
-use crate::core::sync::task::AtomicWaker;
+use crate::core::sync::task::WakerSlot;
 use alloc::sync::Arc;
 use core::{
     future::poll_fn,
@@ -24,7 +24,7 @@ impl<T> SharedFd<T> {
         Self(Arc::new(Inner {
             fd,
             waits: AtomicBool::new(false),
-            waker: AtomicWaker::new(),
+            waker: WakerSlot::new(),
         }))
     }
 
@@ -106,5 +106,5 @@ impl<T> Deref for SharedFd<T> {
 struct Inner<T> {
     fd: T,
     waits: AtomicBool,
-    waker: AtomicWaker,
+    waker: WakerSlot,
 }

@@ -8,12 +8,12 @@ mod waker;
 pub use console::SpawnMeta;
 pub use join_handle::{JoinError, JoinHandle, ResumeUnwind};
 
+use crate::core::sync::queue::SegQueue;
 use core::{
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
     task::Waker,
 };
-use crossbeam_queue::SegQueue;
 
 use super::SendWrapper;
 use queue::{TaskId, TaskQueue};

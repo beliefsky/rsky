@@ -1,0 +1,84 @@
+use core::ops::{Deref, DerefMut};
+
+/// 缓存行填充
+#[derive(Clone, Default, Hash, PartialEq, Eq)]
+#[cfg_attr(target_arch = "m68k", repr(align(16)))]
+#[cfg_attr(
+    any(
+        target_arch = "arm",
+        target_arch = "mips",
+        target_arch = "mips32r6",
+        target_arch = "mips64",
+        target_arch = "mips64r6",
+        target_arch = "sparc",
+        target_arch = "hexagon",
+    ),
+    repr(align(32))
+)]
+#[cfg_attr(
+    any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "arm64ec",
+        target_arch = "powerpc64",
+    ),
+    repr(align(128))
+)]
+#[cfg_attr(target_arch = "s390x", repr(align(256)))]
+#[cfg_attr(
+    not(any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "arm64ec",
+        target_arch = "powerpc64",
+        target_arch = "arm",
+        target_arch = "mips",
+        target_arch = "mips32r6",
+        target_arch = "mips64",
+        target_arch = "mips64r6",
+        target_arch = "sparc",
+        target_arch = "hexagon",
+        target_arch = "m68k",
+        target_arch = "s390x",
+    )),
+    repr(align(64))
+)]
+#[repr(C)]
+pub struct CachePadded<T> {
+    value: T,
+}
+
+impl<T> CachePadded<T> {
+    /// Pads and aligns a value to the length of a cache line.
+    pub const fn new(t: T) -> Self {
+        Self { value: t }
+    }
+
+    /// Returns the inner value.
+    pub fn into_inner(self) -> T {
+        self.value
+    }
+}
+
+impl<T> Deref for CachePadded<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.value
+    }
+}
+
+impl<T> DerefMut for CachePadded<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.value
+    }
+}
+
+impl<T> From<T> for CachePadded<T> {
+    fn from(t: T) -> Self {
+        Self::new(t)
+    }
+}
+
+unsafe impl<T: Send> Send for CachePadded<T> {}
+unsafe impl<T: Sync> Sync for CachePadded<T> {}
