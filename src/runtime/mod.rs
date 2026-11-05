@@ -42,7 +42,7 @@ impl Runtime {
         if CURRENT_RUNTIME.is_set() {
             CURRENT_RUNTIME.with(f)
         } else {
-            not_in_compio_runtime()
+            not_in_runtime()
         }
     }
 
@@ -168,6 +168,10 @@ impl RuntimeBuilder {
         self.proactor_builder = builder;
         self
     }
+    pub fn proactor<F: FnMut(&mut ProactorBuilder)>(&mut self, mut f: F) -> &mut Self {
+        f(&mut self.proactor_builder);
+        self
+    }
 
     pub fn event_interval(&mut self, val: usize) -> &mut Self {
         self.event_interval = val as _;
@@ -215,6 +219,6 @@ pub fn submit<T: OpCode + 'static>(op: T) -> Submit<T> {
 }
 
 #[cold]
-fn not_in_compio_runtime() -> ! {
-    panic!("not in a compio runtime")
+fn not_in_runtime() -> ! {
+    panic!("not in runtime")
 }
