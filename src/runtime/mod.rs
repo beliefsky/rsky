@@ -124,7 +124,7 @@ impl Runtime {
         match driver.poll(timeout) {
             Ok(()) => {}
             Err(e) => match e.kind() {
-                ErrorKind::TimedOut | ErrorKind::Interrupted | ErrorKind::ResourceBusy => {}
+                ErrorKind::TimedOut | ErrorKind::Interrupted => {}
                 _ => panic!("{e:?}"),
             },
         }
