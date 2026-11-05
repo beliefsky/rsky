@@ -8,11 +8,6 @@ use rsky::runtime;
 
 #[test]
 fn test_rsky() -> Result<(), Error> {
-    let a = |x| x += 1;
-
-    let mut b = 1;
-    a(&mut b);
-
     let runtime = runtime::Runtime::new()?;
     println!("hello world");
 
