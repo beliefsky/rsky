@@ -42,7 +42,7 @@ impl Runtime {
         if CURRENT_RUNTIME.is_set() {
             CURRENT_RUNTIME.with(f)
         } else {
-            not_in_compio_runtime()
+            not_in_runtime()
         }
     }
 
@@ -219,6 +219,6 @@ pub fn submit<T: OpCode + 'static>(op: T) -> Submit<T> {
 }
 
 #[cold]
-fn not_in_compio_runtime() -> ! {
-    panic!("not in a compio runtime")
+fn not_in_runtime() -> ! {
+    panic!("not in runtime")
 }
