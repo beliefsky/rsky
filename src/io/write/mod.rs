@@ -1,6 +1,5 @@
-use super::error::Error;
-
-use super::{BufResult, IoBuf, IoVectoredBuf};
+use super::{BufResult, IoBuf, IoVectoredBuf, error::Error};
+use alloc::boxed::Box;
 
 pub trait AsyncWrite {
     fn write<B: IoBuf>(&mut self, buf: B) -> impl Future<Output = BufResult<usize, B>>;

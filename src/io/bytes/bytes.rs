@@ -12,6 +12,8 @@ use alloc::{
     alloc::{Layout, dealloc},
     borrow::Borrow,
     boxed::Box,
+    string::String,
+    vec::Vec,
 };
 
 pub struct Bytes {

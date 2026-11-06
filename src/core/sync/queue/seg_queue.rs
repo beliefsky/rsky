@@ -1,5 +1,8 @@
 use crate::core::sync::{Backoff, CachePadded};
-use alloc::alloc::{Layout, alloc_zeroed, handle_alloc_error};
+use alloc::{
+    alloc::{Layout, alloc_zeroed, handle_alloc_error},
+    boxed::Box,
+};
 use core::{
     cell::UnsafeCell,
     marker::PhantomData,
@@ -510,6 +513,7 @@ impl<T> IntoIterator for SegQueue<T> {
     }
 }
 
+#[repr(transparent)]
 pub struct IntoIter<T> {
     value: SegQueue<T>,
 }

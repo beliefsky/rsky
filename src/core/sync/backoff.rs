@@ -4,6 +4,7 @@ const SPIN_LIMIT: u32 = 6;
 const YIELD_LIMIT: u32 = 10;
 
 /// 自旋锁策略
+#[repr(transparent)]
 pub struct Backoff {
     step: Cell<u32>,
 }
@@ -33,10 +34,10 @@ impl Backoff {
         if self.step.get() <= SPIN_LIMIT {
             self.spin_loop();
         } else {
-            // #[cfg(not(feature = "std"))]
-            // self.spin_loop();
+            #[cfg(not(any(unix, windows)))]
+            self.spin_loop();
 
-            // #[cfg(feature = "std")]
+            #[cfg(any(unix, windows))]
             ::std::thread::yield_now();
         }
 

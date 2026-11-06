@@ -1,5 +1,5 @@
 use crate::os::io::IoVec;
-use alloc::{rc::Rc, sync::Arc};
+use alloc::{boxed::Box, rc::Rc, sync::Arc};
 
 pub trait IoVectoredBuf: 'static {
     fn pos_ref(&self) -> &[IoVec];

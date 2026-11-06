@@ -9,6 +9,7 @@ pub use console::SpawnMeta;
 pub use join_handle::{JoinError, JoinHandle, ResumeUnwind};
 
 use crate::core::sync::queue::SegQueue;
+use alloc::boxed::Box;
 use core::{
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},

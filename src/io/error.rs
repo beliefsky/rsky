@@ -1,4 +1,5 @@
 use crate::os::error::{os_error_kind, os_error_msg};
+use alloc::boxed::Box;
 use core::{error, fmt};
 
 #[repr(transparent)]

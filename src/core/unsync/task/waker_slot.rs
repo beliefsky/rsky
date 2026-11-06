@@ -1,5 +1,6 @@
 use core::{cell::RefCell, task::Waker};
 
+#[repr(transparent)]
 pub struct WakerSlot {
     waker: RefCell<Option<Waker>>,
 }

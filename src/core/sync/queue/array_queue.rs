@@ -1,4 +1,5 @@
 use crate::core::sync::{Backoff, CachePadded};
+use alloc::boxed::Box;
 use core::{
     cell::UnsafeCell,
     mem,
@@ -417,6 +418,7 @@ struct Slot<T> {
     value: UnsafeCell<MaybeUninit<T>>,
 }
 
+#[repr(transparent)]
 pub struct IntoIter<T> {
     value: ArrayQueue<T>,
 }
