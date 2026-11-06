@@ -9,10 +9,8 @@ impl Errno {
     }
 
     pub fn from_errno(raw: u32) -> Self {
-        let encoded = raw.wrapping_neg() as u16;
-
-        assert!(encoded >= 0xf001);
-        Self(encoded)
+        assert!(raw < 65536);
+        Self(raw as u16)
     }
 }
 
