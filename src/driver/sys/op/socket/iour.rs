@@ -1,6 +1,7 @@
-use std::os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd};
-
+use alloc::vec::Vec;
+use core::mem::{self, MaybeUninit};
 use io_uring::{opcode, types};
+use std::os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd};
 
 use super::{
     Accept, Bind, CloseSocket, Connect, CreateSocket, Listen, Recv, RecvVectored, Send,
@@ -8,8 +9,11 @@ use super::{
 };
 use crate::{
     driver::{Extra, OpCode, OpEntry},
-    io::{IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut, error::Error},
-    os::net::{self, MsgHdr, SockAddrArgs, SockAddrArgsMut},
+    io::{self, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
+    os::{
+        io::IoVec,
+        net::{self, Msghdr, SockAddrArgs, SockAddrArgsMut},
+    },
 };
 
 unsafe impl OpCode for CreateSocket {
@@ -25,7 +29,7 @@ unsafe impl OpCode for CreateSocket {
         .into()
     }
 
-    unsafe fn set_result(&mut self, _: &mut Self::Control, res: &Result<usize, Error>, _: &Extra) {
+    unsafe fn set_result(&mut self, _: &mut Self::Control, res: &io::Result<usize>, _: &Extra) {
         if let Ok(fd) = res {
             let fd = unsafe { OwnedFd::from_raw_fd(*fd as _) };
             self.opened_fd = Some(fd);
@@ -85,7 +89,7 @@ where
         entry.into()
     }
 
-    unsafe fn set_result(&mut self, _: &mut Self::Control, res: &Result<usize, Error>, _: &Extra) {
+    unsafe fn set_result(&mut self, _: &mut Self::Control, res: &io::Result<usize>, _: &Extra) {
         if let Ok(fd) = res {
             let fd = unsafe { OwnedFd::from_raw_fd(*fd as _) };
             self.accepted_fd = Some(fd);
@@ -181,16 +185,20 @@ where
     F: AsFd,
     B: IoVectoredBufMut,
 {
-    type Control = MsgHdr;
+    type Control = VectoredMsgControl;
 
     unsafe fn init(&mut self, msg: &mut Self::Control) {
-        msg.set_vec_mut(self.buffer.spare_mut());
+        let vec = msg
+            .buf
+            .write(self.buffer.spare_mut().map(IoVec::from_uninit).collect());
+
+        msg.msg_hdr.set_mut_vec(vec.as_mut_slice());
     }
 
     fn create_entry(&mut self, msg: &mut Self::Control) -> OpEntry {
         opcode::RecvMsg::new(
             types::Fd(self.fd.as_fd().as_raw_fd()),
-            msg.as_ptr_mut() as _,
+            msg.msg_hdr.as_ptr() as _,
         )
         .flags(self.flags.flags())
         .build()
@@ -203,16 +211,36 @@ where
     F: AsFd,
     B: IoVectoredBuf,
 {
-    type Control = MsgHdr;
+    type Control = VectoredMsgControl;
 
     unsafe fn init(&mut self, msg: &mut Self::Control) {
-        msg.set_vec_ref(self.buffer.pos_ref());
+        let vec = msg
+            .buf
+            .write(self.buffer.pos_ref().map(IoVec::from_slice).collect());
+        msg.msg_hdr.set_ref_vec(vec.as_slice());
     }
 
     fn create_entry(&mut self, msg: &mut Self::Control) -> OpEntry {
-        opcode::SendMsg::new(types::Fd(self.fd.as_fd().as_raw_fd()), msg.as_ptr() as _)
-            .flags(self.flags.flags())
-            .build()
-            .into()
+        opcode::SendMsg::new(
+            types::Fd(self.fd.as_fd().as_raw_fd()),
+            msg.msg_hdr.as_mut_ptr() as _,
+        )
+        .flags(self.flags.flags())
+        .build()
+        .into()
+    }
+}
+
+pub struct VectoredMsgControl {
+    pub(super) msg_hdr: Msghdr,
+    pub(super) buf: MaybeUninit<Vec<IoVec>>,
+}
+
+impl Default for VectoredMsgControl {
+    fn default() -> Self {
+        Self {
+            msg_hdr: unsafe { mem::zeroed() },
+            buf: MaybeUninit::uninit(),
+        }
     }
 }

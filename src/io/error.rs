@@ -1,6 +1,8 @@
-use crate::os::error::{os_error_kind, os_error_msg};
+use crate::os::io;
 use alloc::boxed::Box;
-use core::{error, fmt};
+use core::{error, fmt, result};
+
+pub type Result<T> = result::Result<T, Error>;
 
 #[repr(transparent)]
 pub struct Error {
@@ -8,7 +10,7 @@ pub struct Error {
 }
 
 impl Error {
-    pub fn errno(errno: u32) -> Self {
+    pub fn errno(errno: io::Errno) -> Self {
         Self {
             inner: Inner::Os(errno),
         }
@@ -34,14 +36,14 @@ impl Error {
 
     pub fn kind(&self) -> ErrorKind {
         match self.inner {
-            Inner::Os(errno) => os_error_kind(errno),
+            Inner::Os(e) => e.kind(),
             Inner::Simple(kind) => kind,
             Inner::SimpleMessage(v) => v.0,
             _ => ErrorKind::Other,
         }
     }
 
-    pub fn as_errno(&self) -> Option<u32> {
+    pub fn as_errno(&self) -> Option<io::Errno> {
         if let Inner::Os(e) = self.inner {
             Some(e)
         } else {
@@ -57,10 +59,16 @@ impl Error {
     }
 }
 
+impl From<io::Errno> for Error {
+    fn from(errno: io::Errno) -> Self {
+        Error::errno(errno)
+    }
+}
+
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.inner {
-            Inner::Os(errno) => write!(f, "{}", os_error_msg(*errno)),
+            Inner::Os(e) => fmt::Debug::fmt(e, f),
             Inner::Simple(e) => write!(f, "{}", e.as_str()),
             Inner::SimpleMessage(v) => write!(f, "{}", v.1),
             Inner::Other(e) => fmt::Debug::fmt(e, f),
@@ -71,7 +79,7 @@ impl fmt::Debug for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.inner {
-            Inner::Os(errno) => write!(f, "{}", os_error_msg(*errno)),
+            Inner::Os(e) => fmt::Display::fmt(e, f),
             Inner::Simple(e) => write!(f, "{}", e.as_str()),
             Inner::SimpleMessage(v) => write!(f, "{}", v.1),
             Inner::Other(e) => fmt::Display::fmt(e, f),
@@ -179,7 +187,7 @@ impl ErrorKind {
 }
 
 enum Inner {
-    Os(u32),
+    Os(io::Errno),
     Simple(ErrorKind),
     SimpleMessage((ErrorKind, &'static str)),
     Other(Box<dyn error::Error>),

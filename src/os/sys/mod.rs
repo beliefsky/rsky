@@ -1,14 +1,6 @@
-mod error;
-mod iovec;
-mod msghdr;
-mod sockaddr;
-mod types;
+pub(crate) mod io;
 
-pub(crate) use error::*;
-pub(crate) use iovec::*;
-pub(crate) use msghdr::*;
-pub(crate) use sockaddr::*;
-pub(crate) use types::*;
+pub(crate) mod net;
 
 use core::mem::MaybeUninit;
 

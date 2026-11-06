@@ -1,12 +1,11 @@
 mod buf;
 mod bytes;
-pub mod error;
-mod iovec;
+mod error;
 mod read;
 mod write;
 
 pub use buf::*;
 pub use bytes::*;
-pub use iovec::*;
+pub use error::{Error, ErrorKind, Result};
 pub use read::*;
 pub use write::*;

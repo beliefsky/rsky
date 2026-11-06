@@ -4,14 +4,17 @@ use core::{
     ptr,
 };
 
-use super::{super::sys, AddressFamily};
+use super::{
+    super::sys::net::{self, addr},
+    AddressFamily,
+};
 
 pub const EMPTY_SOCK_ADDR: () = ();
 
 #[derive(Clone)]
 pub struct SockAddr {
-    storage: sys::sockaddr_storage,
-    len: sys::Socklen,
+    storage: addr::SocketAddrStorage,
+    len: net::Socklen,
 }
 
 impl SockAddr {
@@ -21,14 +24,14 @@ impl SockAddr {
     }
 
     #[inline]
-    pub fn len(&self) -> sys::Socklen {
+    pub fn len(&self) -> net::Socklen {
         self.len
     }
 
     pub fn as_addr(&self) -> Option<SocketAddr> {
         let addr = match self.family() {
             AddressFamily::INET => {
-                let storage = unsafe { &(*self.as_ptr::<sys::sockaddr_in>()) };
+                let storage = unsafe { &(*self.as_ptr::<addr::SocketAddrIn>()) };
 
                 SocketAddr::V4(SocketAddrV4::new(
                     Ipv4Addr::from(storage.sin_addr.s_addr.to_ne_bytes()),
@@ -36,7 +39,7 @@ impl SockAddr {
                 ))
             }
             AddressFamily::INET6 => {
-                let storage = unsafe { &(*self.as_ptr::<sys::sockaddr_in6>()) };
+                let storage = unsafe { &(*self.as_ptr::<addr::SocketAddrIn6>()) };
                 SocketAddr::V6(SocketAddrV6::new(
                     Ipv6Addr::from(storage.sin6_addr.s6_addr),
                     storage.sin6_port.to_be(),
@@ -52,18 +55,18 @@ impl SockAddr {
     }
 
     fn as_ptr<T>(&self) -> *const T {
-        &self.storage as *const sys::sockaddr_storage as _
+        &self.storage as *const addr::SocketAddrStorage as _
     }
 
     #[inline]
-    fn as_len_ptr(&self) -> (*const sys::sockaddr_storage, sys::Socklen) {
-        (&self.storage as *const sys::sockaddr_storage, self.len)
+    fn as_len_ptr(&self) -> (*const addr::SocketAddrStorage, net::Socklen) {
+        (&self.storage as *const addr::SocketAddrStorage, self.len)
     }
 
     #[inline]
-    fn reset_len_mut_ptr(&mut self) -> (*mut sys::sockaddr_storage, *mut sys::Socklen) {
-        self.len = mem::size_of::<sys::sockaddr_storage>() as _;
-        let addr = &mut self.storage as *mut sys::sockaddr_storage;
+    fn reset_len_mut_ptr(&mut self) -> (*mut addr::SocketAddrStorage, *mut net::Socklen) {
+        self.len = mem::size_of::<addr::SocketAddrStorage>() as _;
+        let addr = &mut self.storage as *mut addr::SocketAddrStorage;
         (addr, &mut self.len)
     }
 }
@@ -72,7 +75,7 @@ impl Default for SockAddr {
     fn default() -> Self {
         SockAddr {
             storage: unsafe { mem::zeroed() },
-            len: mem::size_of::<sys::sockaddr_storage>() as _,
+            len: mem::size_of::<addr::SocketAddrStorage>() as _,
         }
     }
 }
@@ -88,14 +91,14 @@ impl From<SocketAddr> for SockAddr {
 
 impl From<SocketAddrV4> for SockAddr {
     fn from(addr: SocketAddrV4) -> Self {
-        let mut storage = unsafe { mem::zeroed::<sys::sockaddr_storage>() };
+        let mut storage = unsafe { mem::zeroed::<addr::SocketAddrStorage>() };
         let len = {
-            let storage = unsafe { &mut *ptr::addr_of_mut!(storage).cast::<sys::sockaddr_in>() };
+            let storage = unsafe { &mut *ptr::addr_of_mut!(storage).cast::<addr::SocketAddrIn>() };
             storage.sin_family = AddressFamily::INET.as_raw();
             storage.sin_port = addr.port().to_be();
             storage.sin_addr.s_addr = u32::from_ne_bytes(addr.ip().octets());
 
-            mem::size_of::<sys::sockaddr_in>() as _
+            mem::size_of::<addr::SocketAddrIn>() as _
         };
 
         SockAddr { storage, len }
@@ -104,16 +107,16 @@ impl From<SocketAddrV4> for SockAddr {
 
 impl From<SocketAddrV6> for SockAddr {
     fn from(addr: SocketAddrV6) -> SockAddr {
-        let mut storage = unsafe { mem::zeroed::<sys::sockaddr_storage>() };
+        let mut storage = unsafe { mem::zeroed::<addr::SocketAddrStorage>() };
         let len = {
-            let storage = unsafe { &mut *ptr::addr_of_mut!(storage).cast::<sys::sockaddr_in6>() };
+            let storage = unsafe { &mut *ptr::addr_of_mut!(storage).cast::<addr::SocketAddrIn6>() };
             storage.sin6_family = AddressFamily::INET6.as_raw();
             storage.sin6_port = addr.port().to_be();
             storage.sin6_addr.s6_addr = addr.ip().octets();
             storage.sin6_flowinfo = addr.flowinfo();
             storage.sin6_scope_id = addr.scope_id();
 
-            mem::size_of::<sys::sockaddr_in6>() as _
+            mem::size_of::<addr::SocketAddrIn6>() as _
         };
         SockAddr { storage, len }
     }
@@ -123,7 +126,7 @@ impl From<SocketAddrV6> for SockAddr {
 pub trait SockAddrArgs: 'static {
     fn addr_family(&self) -> AddressFamily;
 
-    fn addr_len_ptr(&self) -> (*const sys::sockaddr_storage, sys::Socklen);
+    fn addr_len_ptr(&self) -> (*const addr::SocketAddrStorage, net::Socklen);
 }
 
 impl<A: AsRef<dyn SockAddrArgs> + 'static> SockAddrArgs for A {
@@ -133,7 +136,7 @@ impl<A: AsRef<dyn SockAddrArgs> + 'static> SockAddrArgs for A {
     }
 
     #[inline]
-    fn addr_len_ptr(&self) -> (*const sys::sockaddr_storage, sys::Socklen) {
+    fn addr_len_ptr(&self) -> (*const addr::SocketAddrStorage, net::Socklen) {
         self.as_ref().addr_len_ptr()
     }
 }
@@ -145,32 +148,32 @@ impl SockAddrArgs for SockAddr {
     }
 
     #[inline]
-    fn addr_len_ptr(&self) -> (*const sys::sockaddr_storage, sys::Socklen) {
+    fn addr_len_ptr(&self) -> (*const addr::SocketAddrStorage, net::Socklen) {
         self.as_len_ptr()
     }
 }
 
 // trait SockAddrArgsMut
 pub trait SockAddrArgsMut: 'static {
-    fn addr_reset_len_mut_ptr(&mut self) -> (*mut sys::sockaddr_storage, *mut sys::Socklen);
+    fn addr_reset_len_mut_ptr(&mut self) -> (*mut addr::SocketAddrStorage, *mut net::Socklen);
 }
 
 impl<T: AsMut<dyn SockAddrArgsMut> + 'static> SockAddrArgsMut for T {
     #[inline]
-    fn addr_reset_len_mut_ptr(&mut self) -> (*mut sys::sockaddr_storage, *mut sys::Socklen) {
+    fn addr_reset_len_mut_ptr(&mut self) -> (*mut addr::SocketAddrStorage, *mut net::Socklen) {
         self.as_mut().addr_reset_len_mut_ptr()
     }
 }
 
 impl SockAddrArgsMut for SockAddr {
     #[inline]
-    fn addr_reset_len_mut_ptr(&mut self) -> (*mut sys::sockaddr_storage, *mut sys::Socklen) {
+    fn addr_reset_len_mut_ptr(&mut self) -> (*mut addr::SocketAddrStorage, *mut net::Socklen) {
         self.reset_len_mut_ptr()
     }
 }
 impl SockAddrArgsMut for MaybeUninit<SockAddr> {
     #[inline]
-    fn addr_reset_len_mut_ptr(&mut self) -> (*mut sys::sockaddr_storage, *mut sys::Socklen) {
+    fn addr_reset_len_mut_ptr(&mut self) -> (*mut addr::SocketAddrStorage, *mut net::Socklen) {
         let addr = unsafe { self.assume_init_mut() };
         addr.reset_len_mut_ptr()
     }
@@ -178,7 +181,7 @@ impl SockAddrArgsMut for MaybeUninit<SockAddr> {
 
 impl SockAddrArgsMut for () {
     #[inline]
-    fn addr_reset_len_mut_ptr(&mut self) -> (*mut sys::sockaddr_storage, *mut sys::Socklen) {
+    fn addr_reset_len_mut_ptr(&mut self) -> (*mut addr::SocketAddrStorage, *mut net::Socklen) {
         (ptr::null_mut(), ptr::null_mut())
     }
 }

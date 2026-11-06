@@ -9,7 +9,7 @@ pub use fd::*;
 pub use key::Key;
 pub use sys::*;
 
-use crate::io::{BufResult, error::Error};
+use crate::io::{self, BufResult};
 use core::{
     task::{Poll, Waker},
     time::Duration,
@@ -53,7 +53,7 @@ pub struct Proactor {
 }
 
 impl Proactor {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new() -> io::Result<Self> {
         Self::builder().build()
     }
 
@@ -61,7 +61,7 @@ impl Proactor {
         ProactorBuilder::new()
     }
 
-    pub fn with_builder(builder: &ProactorBuilder) -> Result<Self, Error> {
+    pub fn with_builder(builder: &ProactorBuilder) -> io::Result<Self> {
         Ok(Self {
             driver: Driver::new(builder)?,
         })
@@ -70,7 +70,7 @@ impl Proactor {
     pub fn default_extra(&self) -> Extra {
         Extra::new(&self.driver)
     }
-    pub fn attach(&mut self, fd: RawFd) -> Result<(), Error> {
+    pub fn attach(&mut self, fd: RawFd) -> io::Result<()> {
         self.driver.attach(fd)
     }
 
@@ -96,7 +96,7 @@ impl Proactor {
         }
     }
 
-    pub fn poll(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
+    pub fn poll(&mut self, timeout: Option<Duration>) -> io::Result<()> {
         self.driver.poll(timeout)
     }
 
@@ -184,7 +184,7 @@ impl ProactorBuilder {
         }
     }
 
-    pub fn build(&self) -> Result<Proactor, Error> {
+    pub fn build(&self) -> io::Result<Proactor> {
         Proactor::with_builder(self)
     }
 

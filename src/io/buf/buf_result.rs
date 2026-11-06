@@ -1,12 +1,10 @@
-use super::super::error::Error;
+use crate::io::{self, IntoInner};
 
-use super::IntoInner;
-
-pub struct BufResult<T, B>(Result<T, Error>, B);
+pub struct BufResult<T, B>(io::Result<T>, B);
 
 impl<T, B> BufResult<T, B> {
     #[inline]
-    pub fn new(res: Result<T, Error>, buf: B) -> Self {
+    pub fn new(res: io::Result<T>, buf: B) -> Self {
         Self(res, buf)
     }
 
@@ -19,12 +17,12 @@ impl<T, B> BufResult<T, B> {
     }
 
     #[inline]
-    pub fn res(&self) -> &Result<T, Error> {
+    pub fn res(&self) -> &io::Result<T> {
         &self.0
     }
 
     #[inline]
-    pub fn res_mut(&mut self) -> &mut Result<T, Error> {
+    pub fn res_mut(&mut self) -> &mut io::Result<T> {
         &mut self.0
     }
     #[inline]
@@ -74,7 +72,7 @@ impl<T, B> BufResult<T, B> {
     }
 
     #[inline]
-    pub fn and_then<U>(self, f: impl FnOnce(T, B) -> (Result<U, Error>, B)) -> BufResult<U, B> {
+    pub fn and_then<U>(self, f: impl FnOnce(T, B) -> (io::Result<U>, B)) -> BufResult<U, B> {
         match self.0 {
             Ok(res) => BufResult::from(f(res, self.1)),
             Err(e) => BufResult(Err(e), self.1),
@@ -94,23 +92,23 @@ impl<T, B> BufResult<T, B> {
     }
 
     #[inline]
-    pub fn into_res(self) -> Result<T, Error> {
+    pub fn into_res(self) -> io::Result<T> {
         self.0
     }
 
     #[inline]
-    pub fn into_parts(self) -> (Result<T, Error>, B) {
+    pub fn into_parts(self) -> (io::Result<T>, B) {
         (self.0, self.1)
     }
 }
 
-impl<T, B> From<(Result<T, Error>, B)> for BufResult<T, B> {
-    fn from((res, buf): (Result<T, Error>, B)) -> Self {
+impl<T, B> From<(io::Result<T>, B)> for BufResult<T, B> {
+    fn from((res, buf): (io::Result<T>, B)) -> Self {
         Self::new(res, buf)
     }
 }
 
-impl<T, B> From<BufResult<T, B>> for (Result<T, Error>, B) {
+impl<T, B> From<BufResult<T, B>> for (io::Result<T>, B) {
     fn from(res: BufResult<T, B>) -> Self {
         res.into_parts()
     }

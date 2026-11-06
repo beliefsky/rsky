@@ -1,19 +1,19 @@
-use super::super::sys;
+use crate::os::sys::net;
 
-pub type RawAddressFamily = sys::SaFamily;
+pub type RawAddressFamily = net::SaFamily;
 
-pub const SOCK_CLOEXEC: i32 = sys::O_CLOEXEC;
+pub const SOCK_CLOEXEC: i32 = net::O_CLOEXEC;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 #[repr(transparent)]
 pub struct AddressFamily(RawAddressFamily);
 
 impl AddressFamily {
-    pub const UNSPEC: Self = Self(sys::AF_UNSPEC as _);
+    pub const UNSPEC: Self = Self(net::AF_UNSPEC as _);
 
-    pub const INET: Self = Self(sys::AF_INET as _);
+    pub const INET: Self = Self(net::AF_INET as _);
 
-    pub const INET6: Self = Self(sys::AF_INET6 as _);
+    pub const INET6: Self = Self(net::AF_INET6 as _);
 
     #[inline]
     pub const fn from_raw(raw: RawAddressFamily) -> Self {
@@ -32,9 +32,9 @@ pub type RawSocketType = u32;
 #[repr(transparent)]
 pub struct SocketType(RawSocketType);
 impl SocketType {
-    pub const STREAM: Self = Self(sys::SOCK_STREAM as _);
+    pub const STREAM: Self = Self(net::SOCK_STREAM as _);
 
-    pub const DGRAM: Self = Self(sys::SOCK_DGRAM as _);
+    pub const DGRAM: Self = Self(net::SOCK_DGRAM as _);
 
     #[inline]
     pub const fn from_raw(raw: RawSocketType) -> Self {
@@ -61,9 +61,9 @@ const fn new_raw_protocol(u: u32) -> RawProtocol {
 pub struct Protocol(pub(crate) RawProtocol);
 
 impl Protocol {
-    pub const TCP: Protocol = Protocol(new_raw_protocol(sys::IPPROTO_TCP as _));
+    pub const TCP: Protocol = Protocol(new_raw_protocol(net::IPPROTO_TCP as _));
 
-    pub const UDP: Protocol = Protocol(new_raw_protocol(sys::IPPROTO_UDP as _));
+    pub const UDP: Protocol = Protocol(new_raw_protocol(net::IPPROTO_UDP as _));
 
     /// Constructs a `Protocol` from a raw integer.
     #[inline]

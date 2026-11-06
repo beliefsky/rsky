@@ -1,7 +1,11 @@
 use core::ops::Deref;
 use std::os::fd::{AsFd, AsRawFd};
 
-use crate::{driver::SharedFd, io::IntoInner, io::error::Error, runtime::Runtime};
+use crate::{
+    driver::SharedFd,
+    io::{self, IntoInner},
+    runtime::Runtime,
+};
 
 #[repr(transparent)]
 pub(crate) struct Attacher<S> {
@@ -17,7 +21,7 @@ impl<S> Attacher<S> {
 }
 
 impl<S: AsFd> Attacher<S> {
-    pub fn new(source: S) -> Result<Self, Error> {
+    pub fn new(source: S) -> io::Result<Self> {
         Runtime::with_current(|r| r.attach(source.as_fd().as_raw_fd()))?;
         Ok(unsafe { Self::new_unchecked(source) })
     }
