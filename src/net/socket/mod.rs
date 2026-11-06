@@ -8,10 +8,7 @@ use crate::{
             SendVectored, ShutdownSocket,
         },
     },
-    io::{
-        BufResult, IntoInner, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut,
-        error::{Error, ErrorKind},
-    },
+    io::{self, BufResult, ErrorKind, IntoInner, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
     os::net::{
         AddressFamily, Protocol, RecvFlags, SendFlags, Shutdown, SockAddrArgs, SockAddrArgsMut,
         SocketType,
@@ -26,7 +23,7 @@ pub struct Socket {
 }
 
 impl Socket {
-    pub fn from_fd(fd: OwnedFd) -> Result<Self, Error> {
+    pub fn from_fd(fd: OwnedFd) -> io::Result<Self> {
         Ok(Self {
             socket: Attacher::new(fd)?,
         })
@@ -36,7 +33,7 @@ impl Socket {
         domain: AddressFamily,
         ty: SocketType,
         protocol: Option<Protocol>,
-    ) -> Result<Self, Error> {
+    ) -> io::Result<Self> {
         let (res, op) = runtime::submit(CreateSocket::new(domain, ty, protocol))
             .await
             .into();
@@ -44,28 +41,28 @@ impl Socket {
         Self::from_fd(op.into_inner())
     }
 
-    pub async fn bind<A: SockAddrArgs>(&self, addr: A) -> Result<(), Error> {
+    pub async fn bind<A: SockAddrArgs>(&self, addr: A) -> io::Result<()> {
         runtime::submit(Bind::new(self.shared_fd(), addr))
             .await
             .into_res()
             .map(|_| ())
     }
 
-    pub async fn listen(&self, backlog: i32) -> Result<(), Error> {
+    pub async fn listen(&self, backlog: i32) -> io::Result<()> {
         runtime::submit(Listen::new(self.shared_fd(), backlog))
             .await
             .into_res()
             .map(|_| ())
     }
 
-    pub async fn connect<A: SockAddrArgs>(&self, addr: A) -> Result<(), Error> {
+    pub async fn connect<A: SockAddrArgs>(&self, addr: A) -> io::Result<()> {
         runtime::submit(Connect::new(self.shared_fd(), addr))
             .await
             .into_res()
             .map(|_| ())
     }
 
-    pub async fn accept<A: SockAddrArgsMut>(&self, addr: A) -> Result<(Self, A), Error> {
+    pub async fn accept<A: SockAddrArgsMut>(&self, addr: A) -> io::Result<(Self, A)> {
         let (res, op) = runtime::submit(Accept::new(self.shared_fd(), addr))
             .await
             .into();
@@ -74,7 +71,7 @@ impl Socket {
         Ok((Self::from_fd(accept_fd)?, addr))
     }
 
-    pub async fn shutdown(&self, how: Shutdown) -> Result<(), Error> {
+    pub async fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         let (res, _) = runtime::submit(ShutdownSocket::new(self.shared_fd(), how))
             .await
             .into();
@@ -91,7 +88,7 @@ impl Socket {
         }
     }
 
-    pub fn close(self) -> impl Future<Output = Result<(), Error>> {
+    pub fn close(self) -> impl Future<Output = io::Result<()>> {
         async move {
             let fd = self.socket.into_inner().take().await;
             if let Some(fd) = fd {

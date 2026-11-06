@@ -8,7 +8,12 @@ use core::{
     sync::atomic::{AtomicPtr, AtomicUsize, Ordering},
 };
 
-use alloc::borrow::{Borrow, BorrowMut};
+use alloc::{
+    borrow::{Borrow, BorrowMut},
+    boxed::Box,
+    vec,
+    vec::Vec,
+};
 
 pub struct BytesMut {
     ptr: NonNull<u8>,

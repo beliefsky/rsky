@@ -1,27 +1,20 @@
+mod notify;
+mod op;
+
+pub use op::*;
+
 use core::{
     marker::PhantomData,
     mem::ManuallyDrop,
     task::{Poll, Waker},
     time::Duration,
 };
+use slotmap::{DefaultKey, SlotMap};
 use std::{
-    io,
+    io::Result as StdResult,
     os::fd::{AsRawFd, RawFd},
 };
 
-mod notify;
-mod op;
-
-pub use op::*;
-
-use notify::Notifier;
-
-use slotmap::{DefaultKey, SlotMap};
-
-use crate::{
-    driver::{ProactorBuilder, key::ErasedKey, sys::extra::IourExtra},
-    io::error::{Error, ErrorKind},
-};
 use io_uring::{
     EnterFlags, IoUring,
     opcode::AsyncCancel,
@@ -30,6 +23,14 @@ use io_uring::{
 
 use io_uring::cqueue::Entry as CEntry;
 use io_uring::squeue::Entry as SEntry;
+
+use notify::Notifier;
+
+use crate::{
+    driver::{ProactorBuilder, key::ErasedKey, sys::extra::IourExtra},
+    io::{self, Error, ErrorKind},
+    os::io::Errno,
+};
 
 #[repr(transparent)]
 struct DriverFlags(u8);
@@ -69,7 +70,7 @@ impl Driver {
     const IOUR_CANCEL: u64 = u64::MAX;
     const IOUR_NOTIFY: u64 = u64::MAX - 1;
 
-    pub fn new(builder: &ProactorBuilder) -> Result<Self, Error> {
+    pub fn new(builder: &ProactorBuilder) -> io::Result<Self> {
         let notifier = Notifier::new()?;
         let mut iour_builder = IoUring::builder();
         if let Some(sqpoll_idle) = builder.sqpoll_idle {
@@ -115,7 +116,7 @@ impl Driver {
         })
     }
 
-    pub fn poll(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
+    pub fn poll(&mut self, timeout: Option<Duration>) -> io::Result<()> {
         let need_wait = !self.notifier.reset();
 
         if self.flags.contains(DriverFlags::NEED_PUSH_NOTIFIER) {
@@ -141,11 +142,11 @@ impl Driver {
         IourExtra::new()
     }
 
-    pub fn attach(&mut self, _fd: RawFd) -> Result<(), Error> {
+    pub fn attach(&mut self, _fd: RawFd) -> io::Result<()> {
         Ok(())
     }
 
-    pub fn push(&mut self, key: ErasedKey) -> Poll<Result<usize, Error>> {
+    pub fn push(&mut self, key: ErasedKey) -> Poll<io::Result<usize>> {
         let op_entry = key.borrow().create_entry();
         match op_entry {
             OpEntry::Submission(entry) => {
@@ -177,7 +178,7 @@ impl Driver {
         self.notifier.waker()
     }
 
-    fn submit_auto(&mut self, timeout: Option<Duration>, need_wait: bool) -> Result<(), Error> {
+    fn submit_auto(&mut self, timeout: Option<Duration>, need_wait: bool) -> io::Result<()> {
         let want_sqe = if !need_wait || self.inner.submission().taskrun() {
             0
         } else {
@@ -198,13 +199,13 @@ impl Driver {
                 }
             }
             Err(e) => match e.raw_os_error() {
-                Some(code) => Err(Error::errno(code as u32)),
+                Some(code) => Err(Errno::from_errno(code as u32).into()),
                 _ => Err(Error::other(e)),
             },
         }
     }
 
-    fn submit_and_wait(&self, want_sqe: usize, timeout: Option<Duration>) -> io::Result<usize> {
+    fn submit_and_wait(&self, want_sqe: usize, timeout: Option<Duration>) -> StdResult<usize> {
         if let Some(duration) = timeout {
             let timespec = timespec(duration);
             let args = SubmitArgs::new().timespec(&timespec);
@@ -218,7 +219,7 @@ impl Driver {
         &mut self,
         want_sqe: usize,
         timeout: Option<Duration>,
-    ) -> io::Result<usize> {
+    ) -> StdResult<usize> {
         let to_submit = self.inner.submission().len() as u32;
         let submitter = self.inner.submitter();
         if let Some(duration) = timeout {
@@ -272,7 +273,7 @@ impl Driver {
         has_entry
     }
 
-    fn push_raw_with_key(&mut self, entry: SEntry, key: ErasedKey) -> Result<(), Error> {
+    fn push_raw_with_key(&mut self, entry: SEntry, key: ErasedKey) -> io::Result<()> {
         let user_data = key.as_raw();
         let entry = entry.user_data(user_data as _);
         self.push_raw(entry)?;
@@ -283,7 +284,7 @@ impl Driver {
         Ok(())
     }
 
-    fn push_raw(&mut self, entry: SEntry) -> Result<(), Error> {
+    fn push_raw(&mut self, entry: SEntry) -> io::Result<()> {
         loop {
             let mut squeue = self.inner.submission();
             match unsafe { squeue.push(&entry) } {
@@ -374,9 +375,9 @@ fn create_entry(cq_entry: CEntry) -> Entry {
     entry
 }
 
-fn create_result(result: i32) -> Result<usize, Error> {
+fn create_result(result: i32) -> io::Result<usize> {
     if result < 0 {
-        Err(Error::errno((-result) as u32))
+        Err(Errno::from_errno((-result) as u32).into())
     } else {
         Ok(result as _)
     }

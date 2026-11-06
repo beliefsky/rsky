@@ -1,4 +1,5 @@
 use super::{BufResult, IoBufMut, IoVectoredBufMut};
+use alloc::boxed::Box;
 
 pub trait AsyncRead {
     fn read<B: IoBufMut>(&mut self, buf: B) -> impl Future<Output = BufResult<usize, B>>;

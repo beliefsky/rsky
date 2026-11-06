@@ -1,4 +1,4 @@
-use alloc::{rc::Rc, sync::Arc};
+use alloc::{boxed::Box, rc::Rc, string::String, sync::Arc, vec::Vec};
 use core::{mem::MaybeUninit, slice};
 
 const _: [&dyn IoBuf; 0] = [];
@@ -124,7 +124,7 @@ impl<const N: usize> IoBufMut for [u8; N] {
     #[inline]
     fn spare_mut(&mut self) -> &mut [MaybeUninit<u8>] {
         let ptr = self.as_mut_ptr() as *mut MaybeUninit<u8>;
-        unsafe { std::slice::from_raw_parts_mut(ptr, N) }
+        unsafe { slice::from_raw_parts_mut(ptr, N) }
     }
 }
 

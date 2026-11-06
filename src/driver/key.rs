@@ -12,7 +12,7 @@ use thin_cell::unsync::{Inner, Ref, ThinCell, Weak};
 
 use crate::{
     driver::{Carry, Extra, OpCode, OpEntry, PushEntry, control::Carrier},
-    io::{BufResult, IntoInner, error::Error},
+    io::{self, BufResult, IntoInner},
 };
 
 #[repr(transparent)]
@@ -125,7 +125,7 @@ impl ErasedKey {
         self.borrow().result.is_ready()
     }
 
-    pub(crate) fn set_result(&self, res: Result<usize, Error>) {
+    pub(crate) fn set_result(&self, res: io::Result<usize>) {
         let mut this = self.borrow();
         {
             let RawOp { extra, carrier, .. } = &mut *this;
@@ -180,7 +180,7 @@ impl Unpin for ErasedKey {}
 pub(crate) struct RawOp<C: ?Sized> {
     extra: Extra,
     cancelled: bool,
-    result: PushEntry<Option<Waker>, Result<usize, Error>>,
+    result: PushEntry<Option<Waker>, io::Result<usize>>,
     pub(crate) carrier: C,
 }
 

@@ -2,6 +2,7 @@ mod local;
 mod remote;
 mod state;
 
+use alloc::boxed::Box;
 use core::{
     array, hint,
     mem::{ManuallyDrop, MaybeUninit, offset_of},

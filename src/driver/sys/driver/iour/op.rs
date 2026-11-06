@@ -1,7 +1,7 @@
 use super::SEntry;
 use crate::{
     driver::{Extra, control::Carrier},
-    io::error::Error,
+    io,
 };
 
 pub enum OpEntry {
@@ -35,13 +35,13 @@ pub unsafe trait OpCode {
 
     fn create_entry(&mut self, _: &mut Self::Control) -> OpEntry;
 
-    unsafe fn set_result(&mut self, _: &mut Self::Control, _: &Result<usize, Error>, _: &Extra) {}
+    unsafe fn set_result(&mut self, _: &mut Self::Control, _: &io::Result<usize>, _: &Extra) {}
 }
 
 pub(crate) trait Carry {
     fn create_entry(&mut self) -> OpEntry;
 
-    unsafe fn set_result(&mut self, _: &Result<usize, Error>, _: &Extra);
+    unsafe fn set_result(&mut self, _: &io::Result<usize>, _: &Extra);
 }
 
 impl<T: OpCode> Carry for Carrier<T> {
@@ -50,7 +50,7 @@ impl<T: OpCode> Carry for Carrier<T> {
         op.create_entry(control)
     }
 
-    unsafe fn set_result(&mut self, result: &Result<usize, Error>, extra: &Extra) {
+    unsafe fn set_result(&mut self, result: &io::Result<usize>, extra: &Extra) {
         let (op, control) = self.inner_mut();
         unsafe { OpCode::set_result(op, control, result, extra) }
     }

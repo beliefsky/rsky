@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU8, Ordering};
+use core::sync::atomic::{AtomicU8, Ordering};
 
 mod iour;
 pub use iour::*;

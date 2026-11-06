@@ -1,11 +1,11 @@
-use super::super::{io::IoVec, sys};
+use crate::os::sys::net;
 
 #[repr(transparent)]
 pub struct RecvFlags(u32);
 
 impl RecvFlags {
     pub const EMPTY: Self = Self(0);
-    pub const PEEK: Self = Self(sys::MSG_PEEK);
+    pub const PEEK: Self = Self(net::MSG_PEEK);
 
     #[inline]
     pub fn insert(&mut self, other: Self) {
@@ -23,8 +23,8 @@ pub struct SendFlags(u32);
 
 impl SendFlags {
     pub const EMPTY: Self = Self(0);
-    pub const MSG_NOSIGNAL: Self = Self(sys::MSG_NOSIGNAL);
-    pub const MSG_OOB: Self = Self(sys::MSG_OOB);
+    pub const MSG_NOSIGNAL: Self = Self(net::MSG_NOSIGNAL);
+    pub const MSG_OOB: Self = Self(net::MSG_OOB);
 
     #[inline]
     pub fn insert(&mut self, other: Self) {
@@ -41,48 +41,12 @@ impl SendFlags {
 pub struct Shutdown(i32);
 
 impl Shutdown {
-    pub const READ: Self = Self(sys::SHUT_RD);
-    pub const WRITE: Self = Self(sys::SHUT_WR);
-    pub const BOTH: Self = Self(sys::SHUT_RDWR);
+    pub const READ: Self = Self(net::SHUT_RD);
+    pub const WRITE: Self = Self(net::SHUT_WR);
+    pub const BOTH: Self = Self(net::SHUT_RDWR);
 
     #[inline]
     pub fn how(&self) -> i32 {
         self.0
-    }
-}
-
-#[repr(transparent)]
-pub struct MsgHdr {
-    _inner: sys::MsgHdr,
-}
-
-impl MsgHdr {
-    #[inline]
-    pub fn set_vec_ref(&mut self, vec: &[IoVec]) {
-        let vec = unsafe { &*(vec as *const [IoVec] as *const [sys::IoVec]) };
-
-        self._inner.set_vec_ref(vec);
-    }
-
-    #[inline]
-    pub fn set_vec_mut(&mut self, vec: &mut [IoVec]) {
-        let vec = unsafe { &mut *(vec as *mut [IoVec] as *mut [sys::IoVec]) };
-
-        self._inner.set_vec_mut(vec);
-    }
-
-    pub fn as_ptr(&self) -> *const MsgHdr {
-        self as _
-    }
-    pub fn as_ptr_mut(&mut self) -> *mut MsgHdr {
-        self as _
-    }
-}
-
-impl Default for MsgHdr {
-    fn default() -> Self {
-        Self {
-            _inner: sys::MsgHdr::new(),
-        }
     }
 }

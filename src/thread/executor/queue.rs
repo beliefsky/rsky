@@ -1,5 +1,5 @@
+use alloc::vec::Vec;
 use core::{fmt::Debug, ptr::NonNull};
-
 use slotmap::{SlotMap, new_key_type};
 
 use super::{

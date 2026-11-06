@@ -1,3 +1,5 @@
-mod io_vec;
+mod errno;
 
-pub use io_vec::*;
+pub use errno::{Errno, Result};
+
+pub(crate) use crate::os::sys::io::io_vec::IoVec;

@@ -9,7 +9,7 @@ use std::os::fd::RawFd;
 
 use crate::{
     driver::{OpCode, Proactor, ProactorBuilder},
-    io::error::{Error, ErrorKind},
+    io::{self, ErrorKind},
     scoped_thread_local,
     thread::{Executor, ExecutorConfig, JoinHandle, SpawnMeta, console},
 };
@@ -30,7 +30,7 @@ pub struct Runtime {
 }
 
 impl Runtime {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new() -> io::Result<Self> {
         Self::builder().build()
     }
 
@@ -93,7 +93,7 @@ impl Runtime {
         self.executor.spawn_at(future, meta)
     }
 
-    pub(crate) fn attach(&self, fd: RawFd) -> Result<(), Error> {
+    pub(crate) fn attach(&self, fd: RawFd) -> io::Result<()> {
         self.driver.borrow_mut().attach(fd)
     }
 
@@ -183,7 +183,7 @@ impl RuntimeBuilder {
         self
     }
 
-    pub fn build(&self) -> Result<Runtime, Error> {
+    pub fn build(&self) -> io::Result<Runtime> {
         let RuntimeBuilder {
             proactor_builder,
             local_queue_size,

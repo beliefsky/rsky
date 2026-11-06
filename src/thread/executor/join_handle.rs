@@ -1,6 +1,6 @@
 use core::{
     error::Error,
-    fmt::Display,
+    fmt::{self, Display},
     marker::PhantomData,
     mem::ManuallyDrop,
     pin::Pin,
@@ -71,7 +71,7 @@ impl<T> ResumeUnwind for Result<T, JoinError> {
 }
 
 impl Display for JoinError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             JoinError::Cancelled => write!(f, "Task was cancelled"),
         }
