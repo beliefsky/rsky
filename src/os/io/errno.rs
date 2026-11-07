@@ -15,7 +15,7 @@ impl Errno {
             Self::ECONNRESET => ErrorKind::ConnectionReset,
             Self::EXDEV => ErrorKind::CrossesDevices,
             Self::ENOTEMPTY => ErrorKind::DirectoryNotEmpty,
-            Self::EAGAIN | Self::EWOULDBLOCK => ErrorKind::Interrupted,
+            Self::EINTR => ErrorKind::Interrupted,
             Self::EFBIG => ErrorKind::FileTooLarge,
             Self::EINVAL => ErrorKind::InvalidInput,
             Self::EISDIR => ErrorKind::IsADirectory,
@@ -28,6 +28,7 @@ impl Errno {
             Self::ETIME => ErrorKind::TimedOut,
             Self::EMLINK => ErrorKind::TooManyLinks,
             Self::EMFILE => ErrorKind::TooManyOpenFiles,
+            Self::EAGAIN | Self::EWOULDBLOCK => ErrorKind::WouldBlock,
 
             _ => {
                 println!("errno unknown: {}", self);

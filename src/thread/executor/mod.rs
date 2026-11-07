@@ -11,6 +11,7 @@ pub use join_handle::{JoinError, JoinHandle, ResumeUnwind};
 use crate::core::sync::queue::SegQueue;
 use alloc::boxed::Box;
 use core::{
+    cell,
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
     task::Waker,
@@ -20,11 +21,11 @@ use super::SendWrapper;
 use queue::{TaskId, TaskQueue};
 
 #[repr(transparent)]
-struct UnsafeCell<T>(core::cell::UnsafeCell<T>);
+struct UnsafeCell<T>(cell::UnsafeCell<T>);
 
 impl<T> UnsafeCell<T> {
     pub fn new(value: T) -> Self {
-        Self(core::cell::UnsafeCell::new(value))
+        Self(cell::UnsafeCell::new(value))
     }
 
     #[inline(always)]
