@@ -124,10 +124,17 @@ impl Driver {
             self.flags.remove(DriverFlags::NEED_PUSH_NOTIFIER);
         }
 
-        if let Err(e) = self.submit_auto(timeout, need_wait) {
-            // Consume as soon as possible when the queue is full
-            if e.kind() != ErrorKind::ResourceBusy {
-                return Err(e);
+        while let Err(e) = self.submit_auto(timeout, need_wait) {
+            match e.kind() {
+                // EBUSY: Consume as soon as possible when the queue is full
+                ErrorKind::ResourceBusy => {
+                    break;
+                }
+                // EINTR: try again
+                ErrorKind::Interrupted => {
+                    continue;
+                }
+                _ => return Err(e),
             }
         }
 
@@ -285,7 +292,7 @@ impl Driver {
     }
 
     fn push_raw(&mut self, entry: SEntry) -> io::Result<()> {
-        loop {
+        'repush: loop {
             let mut squeue = self.inner.submission();
             match unsafe { squeue.push(&entry) } {
                 Ok(()) => {
@@ -295,16 +302,22 @@ impl Driver {
                 // 列队满了会失败，需提交后再加入列队
                 Err(_) => {
                     drop(squeue);
-                    match self.submit_auto(Some(Duration::ZERO), true) {
-                        Ok(()) => {}
-                        Err(e) => match e.kind() {
-                            ErrorKind::TimedOut
-                            | ErrorKind::Interrupted
-                            | ErrorKind::ResourceBusy => {}
 
+                    while let Err(e) = self.submit_auto(Some(Duration::ZERO), true) {
+                        match e.kind() {
+                            ErrorKind::TimedOut | ErrorKind::WouldBlock => {
+                                continue 'repush;
+                            }
+                            ErrorKind::Interrupted => {
+                                continue;
+                            }
+                            ErrorKind::ResourceBusy => {
+                                break;
+                            }
                             _ => return Err(e),
-                        },
+                        }
                     }
+
                     // 提交后直接处理完成的列队
                     if self.poll_entries() {
                         // 唤醒去处理后续任务

@@ -54,7 +54,7 @@ mod linux {
         (ENOEXEC,8,"Exec format error");
         (EBADF,9,"Bad file number");
         (ECHILD,10,"No child processes");
-        (EAGAIN,11,"Try again");
+        (EAGAIN,11,"Resource temporarily unavailable");
         (ENOMEM,12,"Memory allocation failed");
         (EACCES,13,"Permission denied");
         (EFAULT,14,"Bad address");
@@ -84,7 +84,7 @@ mod linux {
         (ENOSYS,38,"Function not implemented");
         (ENOTEMPTY,39,"Directory not empty");
         (ELOOP,40,"Too many symbolic links encountered");
-        (EWOULDBLOCK,41,"Try again"); // 实际值与EAGAIN一致，此处处于兼容考虑
+        (EWOULDBLOCK,41,"Resource temporarily unavailable"); // 实际值与EAGAIN一致，此处处于兼容考虑
         (ENOMSG,42,"No message of desired type");
         (EIDRM,43,"Identifier removed");
         (ECHRNG,44,"Channel number out of range");
@@ -157,7 +157,7 @@ mod linux {
         (EHOSTDOWN,112,"Host is down");
         (EHOSTUNREACH,113,"No route to host");
         (EALREADY,114,"Operation already");
-        (EINPROGRESS,115,"Operation now in");
+        (EINPROGRESS,115,"Operation now in process");
         (ESTALE,116,"Stale NFS file handle");
         (EUCLEAN,117,"Structure needs cleaning");
         (ENOTNAM,118,"Not a XENIX-named");
