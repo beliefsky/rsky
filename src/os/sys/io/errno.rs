@@ -157,7 +157,7 @@ mod linux {
         (EHOSTDOWN,112,"Host is down");
         (EHOSTUNREACH,113,"No route to host");
         (EALREADY,114,"Operation already");
-        (EINPROGRESS,115,"Operation now in");
+        (EINPROGRESS,115,"Operation now in process");
         (ESTALE,116,"Stale NFS file handle");
         (EUCLEAN,117,"Structure needs cleaning");
         (ENOTNAM,118,"Not a XENIX-named");

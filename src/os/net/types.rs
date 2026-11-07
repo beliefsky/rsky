@@ -1,8 +1,8 @@
-use crate::os::sys::net;
+use crate::os::sys::{io, net};
 
 pub type RawAddressFamily = net::SaFamily;
 
-pub const SOCK_CLOEXEC: i32 = net::O_CLOEXEC;
+pub const SOCK_CLOEXEC: i32 = io::O_CLOEXEC;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 #[repr(transparent)]
