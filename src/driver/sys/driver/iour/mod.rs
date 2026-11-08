@@ -124,16 +124,10 @@ impl Driver {
             self.flags.remove(DriverFlags::NEED_PUSH_NOTIFIER);
         }
 
-        while let Err(e) = self.submit_auto(timeout, need_wait) {
+        if let Err(e) = self.submit_auto(timeout, need_wait) {
             match e.kind() {
                 // EBUSY: Consume as soon as possible when the queue is full
-                ErrorKind::ResourceBusy => {
-                    break;
-                }
-                // EINTR: try again
-                ErrorKind::Interrupted => {
-                    continue;
-                }
+                ErrorKind::ResourceBusy => {}
                 _ => return Err(e),
             }
         }
@@ -292,7 +286,7 @@ impl Driver {
     }
 
     fn push_raw(&mut self, entry: SEntry) -> io::Result<()> {
-        'repush: loop {
+        loop {
             let mut squeue = self.inner.submission();
             match unsafe { squeue.push(&entry) } {
                 Ok(()) => {
@@ -303,17 +297,12 @@ impl Driver {
                 Err(_) => {
                     drop(squeue);
 
-                    while let Err(e) = self.submit_auto(Some(Duration::ZERO), true) {
+                    if let Err(e) = self.submit_auto(Some(Duration::ZERO), true) {
                         match e.kind() {
                             ErrorKind::TimedOut | ErrorKind::WouldBlock => {
-                                continue 'repush;
-                            }
-                            ErrorKind::Interrupted => {
                                 continue;
                             }
-                            ErrorKind::ResourceBusy => {
-                                break;
-                            }
+                            ErrorKind::ResourceBusy => {}
                             _ => return Err(e),
                         }
                     }
