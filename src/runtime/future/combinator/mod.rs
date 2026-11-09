@@ -1,20 +1,23 @@
 use crate::driver::Extra;
+use core::marker::PhantomData;
 
-#[derive(Default)]
 #[non_exhaustive]
-pub(crate) struct Ext {
+#[derive(Default)]
+pub(crate) struct Ext<'a> {
     personality: Option<u16>,
+    _cancel: PhantomData<&'a ()>,
 }
 
-impl Ext {
-    pub fn to_owned(&self) -> Self {
-        Self {
+impl<'a> Ext<'a> {
+    pub fn to_owned(&self) -> Ext<'static> {
+        Ext {
             personality: self.personality,
+            _cancel: PhantomData,
         }
     }
 }
 
-impl Ext {
+impl<'a> Ext<'a> {
     pub fn set_extra(&self, extra: &mut Extra) -> bool {
         let mut changed = false;
         if let Some(personality) = self.personality {

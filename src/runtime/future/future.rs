@@ -134,6 +134,16 @@ impl<T: OpCode + 'static> Future for Submit<T, Extra> {
 
         loop {
             match this.state.take().expect("Cannot poll after ready") {
+                State::Idle { op } => {
+                    let extra = cx.as_extra(|| this.driver.borrow().default_extra());
+                    let entry = super::submit_raw(&mut this.driver.borrow_mut(), op, extra);
+                    match entry {
+                        PushEntry::Pending(key) => *this.state = Some(State::submitted(key)),
+                        PushEntry::Ready(res) => {
+                            return Poll::Ready((res, this.driver.borrow().default_extra()));
+                        }
+                    }
+                }
                 State::Submitted { key, .. } => {
                     let entry = super::poll_task_with_extra(
                         &mut this.driver.borrow_mut(),
@@ -146,16 +156,6 @@ impl<T: OpCode + 'static> Future for Submit<T, Extra> {
                             return Poll::Pending;
                         }
                         PushEntry::Ready(res) => return Poll::Ready(res),
-                    }
-                }
-                State::Idle { op } => {
-                    let extra = cx.as_extra(|| this.driver.borrow().default_extra());
-                    let entry = super::submit_raw(&mut this.driver.borrow_mut(), op, extra);
-                    match entry {
-                        PushEntry::Pending(key) => *this.state = Some(State::submitted(key)),
-                        PushEntry::Ready(res) => {
-                            return Poll::Ready((res, this.driver.borrow().default_extra()));
-                        }
                     }
                 }
             }

@@ -78,7 +78,7 @@ impl std::future::Future for TestSync {
 async fn test_rsky_ser() -> io::Result<()> {
     let addr = SockAddr::from(SocketAddr::from(([127, 0, 0, 1], 3000)));
 
-    let listener = TcpListener::builder().backlog(511).bind(addr).await?;
+    let listener = TcpListener::opts().backlog(511).bind(addr).await?;
 
     // let mut accept_addr = MaybeUninit::uninit();
     let mut accept_addr = rsky::os::net::EMPTY_SOCK_ADDR;
