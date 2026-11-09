@@ -7,6 +7,7 @@ use core::{
 
 use crate::{runtime::Ext, thread::SendWrapper};
 
+// `static` guarantees the uniqueness of vtable in memory
 static EXT_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
     ExtWaker::clone,
     ExtWaker::wake,
@@ -22,13 +23,14 @@ static OWNED_EXT_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
 );
 
 #[derive(Clone)]
-pub(crate) struct ExtWaker<'a> {
+pub(crate) struct ExtWaker<'a, 'b> {
     waker: &'a Waker,
-
-    ext: SendWrapper<&'a Ext>,
+    // `SendWrapper<&Ext>` will not panic when being dropped on other thread
+    // since references doesn't need drop
+    ext: SendWrapper<&'a Ext<'b>>,
 }
 
-impl<'a> ExtWaker<'a> {
+impl<'a, 'b> ExtWaker<'a, 'b> {
     unsafe fn from_raw<'s>(ptr: *const ()) -> &'s Self {
         unsafe { &*ptr.cast::<Self>() }
     }
@@ -53,12 +55,13 @@ impl<'a> ExtWaker<'a> {
         unsafe { Self::from_raw(ptr) }.waker.wake_by_ref();
     }
 
-    unsafe fn drop(_: *const ()) {}
+    unsafe fn drop(_: *const ()) {
+        // `ExtWaker` only contains reference, no need to drop.
+    }
 
     fn to_owned(&self) -> Option<OwnedExtWaker> {
         let ext_data = self.ext.get().copied()?.to_owned();
         let ext = ManuallyDrop::new(SendWrapper::new(ext_data));
-
         Some(OwnedExtWaker(Arc::new(Inner {
             waker: self.waker.clone(),
             ext,
@@ -71,7 +74,7 @@ struct OwnedExtWaker(Arc<Inner>);
 
 struct Inner {
     waker: Waker,
-    ext: ManuallyDrop<SendWrapper<Ext>>,
+    ext: ManuallyDrop<SendWrapper<Ext<'static>>>,
 }
 
 impl Drop for Inner {
@@ -126,7 +129,7 @@ pub(crate) fn get_waker(waker: &Waker) -> &Waker {
     }
 }
 
-pub(crate) fn get_ext(waker: &Waker) -> Option<&Ext> {
+pub(crate) fn get_ext(waker: &Waker) -> Option<&Ext<'_>> {
     if ptr::eq(waker.vtable(), &EXT_WAKER_VTABLE) {
         unsafe { ExtWaker::from_raw(waker.data()) }
             .ext

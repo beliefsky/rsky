@@ -17,12 +17,12 @@ pub struct TcpListener {
 impl TcpListener {
     pub async fn bind<Addr: SockAddrArgs>(
         addr: Addr,
-        config: &TcpListenerBuilder,
+        opts: &TcpListenerOptions,
     ) -> io::Result<Self> {
         let socket =
             Socket::new(addr.addr_family(), SocketType::STREAM, Some(Protocol::TCP)).await?;
 
-        if let Err(e) = Self::bind_with_opt(&socket, addr, config).await {
+        if let Err(e) = Self::bind_with_opt(&socket, addr, opts).await {
             let _ = socket.close().await;
             Err(e)
         } else {
@@ -30,8 +30,8 @@ impl TcpListener {
         }
     }
 
-    pub fn builder() -> TcpListenerBuilder {
-        TcpListenerBuilder::default()
+    pub fn opts() -> TcpListenerOptions {
+        TcpListenerOptions::default()
     }
 
     #[inline(always)]
@@ -48,12 +48,12 @@ impl TcpListener {
     async fn bind_with_opt<A: SockAddrArgs>(
         socket: &Socket,
         addr: A,
-        config: &TcpListenerBuilder,
+        opts: &TcpListenerOptions,
     ) -> io::Result<()> {
         // 待处理配置, set_reuse_address
 
         socket.bind(addr).await?;
-        socket.listen(config.backlog).await
+        socket.listen(opts.backlog).await
     }
 }
 
@@ -201,11 +201,11 @@ impl AsyncWrite for &TcpStream {
     }
 }
 
-pub struct TcpListenerBuilder {
+pub struct TcpListenerOptions {
     backlog: i32,
 }
 
-impl TcpListenerBuilder {
+impl TcpListenerOptions {
     pub fn new() -> Self {
         Self::default()
     }
@@ -220,7 +220,7 @@ impl TcpListenerBuilder {
     }
 }
 
-impl Default for TcpListenerBuilder {
+impl Default for TcpListenerOptions {
     fn default() -> Self {
         Self { backlog: 128 }
     }
