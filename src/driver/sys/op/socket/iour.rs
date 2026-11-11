@@ -188,9 +188,13 @@ where
     type Control = VectoredMsgControl;
 
     unsafe fn init(&mut self, msg: &mut Self::Control) {
-        let vec = msg
-            .buf
-            .write(self.buffer.spare_mut().map(IoVec::from_uninit).collect());
+        let vec = msg.buf.write(
+            self.buffer
+                .spare_mut()
+                .filter(|v| !v.is_empty())
+                .map(IoVec::from_uninit)
+                .collect(),
+        );
 
         msg.msg_hdr.set_mut_vec(vec.as_mut_slice());
     }
@@ -214,9 +218,13 @@ where
     type Control = VectoredMsgControl;
 
     unsafe fn init(&mut self, msg: &mut Self::Control) {
-        let vec = msg
-            .buf
-            .write(self.buffer.pos_ref().map(IoVec::from_slice).collect());
+        let vec = msg.buf.write(
+            self.buffer
+                .pos_ref()
+                .filter(|v| !v.is_empty())
+                .map(IoVec::from_slice)
+                .collect(),
+        );
         msg.msg_hdr.set_ref_vec(vec.as_slice());
     }
 

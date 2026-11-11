@@ -1,4 +1,4 @@
-use crate::io::{self, IntoInner};
+use crate::io;
 
 pub struct BufResult<T, B>(io::Result<T>, B);
 
@@ -111,13 +111,5 @@ impl<T, B> From<(io::Result<T>, B)> for BufResult<T, B> {
 impl<T, B> From<BufResult<T, B>> for (io::Result<T>, B) {
     fn from(res: BufResult<T, B>) -> Self {
         res.into_parts()
-    }
-}
-
-impl<T: IntoInner, O> IntoInner for BufResult<O, T> {
-    type Inner = BufResult<O, T::Inner>;
-
-    fn into_inner(self) -> Self::Inner {
-        BufResult::new(self.0, self.1.into_inner())
     }
 }

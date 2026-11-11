@@ -2,7 +2,7 @@ use core::mem::ManuallyDrop;
 use std::os::fd::{AsFd, OwnedFd};
 
 use crate::{
-    io::{IntoInner, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
+    io::{IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
     os::net::{
         AddressFamily, Protocol, RecvFlags, SendFlags, Shutdown, SockAddrArgs, SockAddrArgsMut,
         SocketType,
@@ -27,12 +27,8 @@ impl CreateSocket {
             opened_fd: None,
         }
     }
-}
 
-impl IntoInner for CreateSocket {
-    type Inner = OwnedFd;
-
-    fn into_inner(self) -> Self::Inner {
+    pub fn into_inner(self) -> OwnedFd {
         self.opened_fd.expect("socket not created")
     }
 }
@@ -95,16 +91,8 @@ where
             accepted_fd: None,
         }
     }
-}
 
-impl<F, A> IntoInner for Accept<F, A>
-where
-    F: AsFd,
-    A: SockAddrArgsMut,
-{
-    type Inner = (OwnedFd, A);
-
-    fn into_inner(mut self) -> Self::Inner {
+    pub fn into_parts(mut self) -> (OwnedFd, A) {
         let socket = self.accepted_fd.take().expect("socket not accepted");
         (socket, self.addr)
     }
@@ -176,16 +164,8 @@ where
     pub fn new(fd: F, buffer: B, flags: RecvFlags) -> Self {
         Self { fd, buffer, flags }
     }
-}
 
-impl<F, B> IntoInner for Recv<F, B>
-where
-    F: AsFd,
-    B: IoBufMut,
-{
-    type Inner = B;
-
-    fn into_inner(self) -> Self::Inner {
+    pub fn into_inner(self) -> B {
         self.buffer
     }
 }
@@ -208,16 +188,8 @@ where
     pub fn new(fd: F, buffer: B, flags: SendFlags) -> Self {
         Self { fd, buffer, flags }
     }
-}
 
-impl<F, B> IntoInner for Send<F, B>
-where
-    F: AsFd,
-    B: IoBuf,
-{
-    type Inner = B;
-
-    fn into_inner(self) -> Self::Inner {
+    pub fn into_inner(self) -> B {
         self.buffer
     }
 }
@@ -240,16 +212,8 @@ where
     pub fn new(fd: F, buffer: B, flags: RecvFlags) -> Self {
         Self { fd, buffer, flags }
     }
-}
 
-impl<F, B> IntoInner for RecvVectored<F, B>
-where
-    F: AsFd,
-    B: IoVectoredBufMut,
-{
-    type Inner = B;
-
-    fn into_inner(self) -> Self::Inner {
+    pub fn into_inner(self) -> B {
         self.buffer
     }
 }
@@ -272,16 +236,8 @@ where
     pub fn new(fd: F, buffer: B, flags: SendFlags) -> Self {
         Self { fd, buffer, flags }
     }
-}
 
-impl<F, B> IntoInner for SendVectored<F, B>
-where
-    F: AsFd,
-    B: IoVectoredBuf,
-{
-    type Inner = B;
-
-    fn into_inner(self) -> Self::Inner {
+    pub fn into_inner(self) -> B {
         self.buffer
     }
 }
