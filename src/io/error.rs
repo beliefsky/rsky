@@ -28,10 +28,14 @@ impl Error {
         }
     }
 
-    pub fn other<T: error::Error + 'static>(error: T) -> Self {
+    pub fn other_box(error: Box<dyn error::Error>) -> Self {
         Self {
-            inner: Inner::Other(Box::new(error)),
+            inner: Inner::Other(error),
         }
+    }
+
+    pub fn other<T: error::Error + 'static>(error: T) -> Self {
+        Self::other_box(Box::new(error))
     }
 
     pub fn kind(&self) -> ErrorKind {
@@ -61,7 +65,13 @@ impl Error {
 
 impl From<io::Errno> for Error {
     fn from(errno: io::Errno) -> Self {
-        Error::errno(errno)
+        Self::errno(errno)
+    }
+}
+
+impl From<Box<dyn error::Error>> for Error {
+    fn from(error: Box<dyn error::Error>) -> Self {
+        Self::other_box(error)
     }
 }
 
