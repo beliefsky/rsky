@@ -10,13 +10,7 @@ pub trait IoVectoredBuf: 'static {
     }
 
     fn pos_is_empty(&self) -> bool {
-        let mut iter = self.pos_ref();
-        while let Some(b) = iter.next() {
-            if !b.is_empty() {
-                return false;
-            }
-        }
-        true
+        self.pos_ref().all(|b| b.is_empty())
     }
 }
 
@@ -182,13 +176,7 @@ pub trait IoVectoredBufMut: 'static {
     }
 
     fn spare_is_empty(&mut self) -> bool {
-        let mut iter = self.spare_mut();
-        while let Some(b) = iter.next() {
-            if !b.is_empty() {
-                return false;
-            }
-        }
-        true
+        self.spare_mut().all(|b| b.is_empty())
     }
 }
 
