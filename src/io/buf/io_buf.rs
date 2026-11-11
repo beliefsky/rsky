@@ -312,11 +312,7 @@ pub trait IoBufExt: IoBuf {
         R: RangeBounds<usize>,
         Self: Sized,
     {
-        let len = self.pos_len();
-        let slice = unsafe { Slice::new(self, range) };
-        assert!(slice.begin() <= len);
-
-        slice
+        unsafe { Slice::new(self, range) }
     }
 }
 
@@ -328,11 +324,7 @@ pub trait IoBufMutExt: IoBufMut {
         R: RangeBounds<usize>,
         Self: Sized,
     {
-        let len = self.spare_len();
-        let slice = unsafe { Slice::new(self, range) };
-        assert!(slice.begin() <= len);
-
-        slice
+        unsafe { Slice::new(self, range) }
     }
 }
 
