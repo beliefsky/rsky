@@ -1,11 +1,7 @@
 use core::ops::Deref;
 use std::os::fd::{AsFd, AsRawFd};
 
-use crate::{
-    driver::SharedFd,
-    io::{self, IntoInner},
-    runtime::Runtime,
-};
+use crate::{driver::SharedFd, io, runtime::Runtime};
 
 #[repr(transparent)]
 pub(crate) struct Attacher<S> {
@@ -17,6 +13,10 @@ impl<S> Attacher<S> {
         Self {
             source: unsafe { SharedFd::new_unchecked(source) },
         }
+    }
+
+    pub fn into_inner(self) -> SharedFd<S> {
+        self.source
     }
 }
 
@@ -44,13 +44,5 @@ impl<S> Deref for Attacher<S> {
 
     fn deref(&self) -> &Self::Target {
         self.source.deref()
-    }
-}
-
-impl<S> IntoInner for Attacher<S> {
-    type Inner = SharedFd<S>;
-
-    fn into_inner(self) -> Self::Inner {
-        self.source
     }
 }

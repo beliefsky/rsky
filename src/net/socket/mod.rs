@@ -8,7 +8,7 @@ use crate::{
             SendVectored, ShutdownSocket,
         },
     },
-    io::{self, BufResult, ErrorKind, IntoInner, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
+    io::{self, BufResult, ErrorKind, IoBuf, IoBufMut, IoVectoredBuf, IoVectoredBufMut},
     os::net::{
         AddressFamily, Protocol, RecvFlags, SendFlags, Shutdown, SockAddrArgs, SockAddrArgsMut,
         SocketType,
@@ -65,16 +65,16 @@ impl Socket {
     pub async fn accept<A: SockAddrArgsMut>(&self, addr: A) -> io::Result<(Self, A)> {
         let (res, op) = runtime::submit(Accept::new(self.shared_fd(), addr))
             .await
-            .into();
+            .into_parts();
         res?;
-        let (accept_fd, addr) = op.into_inner();
+        let (accept_fd, addr) = op.into_parts();
         Ok((Self::from_fd(accept_fd)?, addr))
     }
 
     pub async fn shutdown(&self, how: Shutdown) -> io::Result<()> {
-        let (res, _) = runtime::submit(ShutdownSocket::new(self.shared_fd(), how))
+        let res = runtime::submit(ShutdownSocket::new(self.shared_fd(), how))
             .await
-            .into();
+            .into_res();
 
         match res {
             Err(e) => {
@@ -98,26 +98,38 @@ impl Socket {
         }
     }
 
-    pub async fn recv<B: IoBufMut>(&self, buffer: B, flags: RecvFlags) -> BufResult<usize, B> {
-        runtime::submit(Recv::new(self.shared_fd(), buffer, flags))
-            .await
-            .into_inner()
+    pub async fn recv<B: IoBufMut>(&self, mut buffer: B, flags: RecvFlags) -> BufResult<usize, B> {
+        if !buffer.spare_is_empty() {
+            runtime::submit(Recv::new(self.shared_fd(), buffer, flags))
+                .await
+                .map_buf(|b| b.into_inner())
+        } else {
+            BufResult::new(Ok(0), buffer)
+        }
     }
 
     pub async fn send<B: IoBuf>(&self, buffer: B, flags: SendFlags) -> BufResult<usize, B> {
-        runtime::submit(Send::new(self.shared_fd(), buffer, flags))
-            .await
-            .into_inner()
+        if !buffer.pos_is_empty() {
+            runtime::submit(Send::new(self.shared_fd(), buffer, flags))
+                .await
+                .map_buf(|b| b.into_inner())
+        } else {
+            BufResult::new(Ok(0), buffer)
+        }
     }
 
     pub async fn recv_vectored<V: IoVectoredBufMut>(
         &self,
-        buffer: V,
+        mut buffer: V,
         flags: RecvFlags,
     ) -> BufResult<usize, V> {
-        runtime::submit(RecvVectored::new(self.shared_fd(), buffer, flags))
-            .await
-            .into_inner()
+        if !buffer.spare_is_empty() {
+            runtime::submit(RecvVectored::new(self.shared_fd(), buffer, flags))
+                .await
+                .map_buf(|b| b.into_inner())
+        } else {
+            BufResult::new(Ok(0), buffer)
+        }
     }
 
     pub async fn send_vectored<V: IoVectoredBuf>(
@@ -125,9 +137,13 @@ impl Socket {
         buffer: V,
         flags: SendFlags,
     ) -> BufResult<usize, V> {
-        runtime::submit(SendVectored::new(self.shared_fd(), buffer, flags))
-            .await
-            .into_inner()
+        if !buffer.pos_is_empty() {
+            runtime::submit(SendVectored::new(self.shared_fd(), buffer, flags))
+                .await
+                .map_buf(|b| b.into_inner())
+        } else {
+            BufResult::new(Ok(0), buffer)
+        }
     }
 
     fn shared_fd(&self) -> SharedFd<OwnedFd> {
