@@ -11,7 +11,7 @@ pub struct Slice<T> {
 }
 
 impl<T> Slice<T> {
-    pub unsafe fn new<R>(buffer: T, range: R) -> Slice<T>
+    pub fn new<R>(buffer: T, range: R) -> Slice<T>
     where
         R: RangeBounds<usize>,
     {

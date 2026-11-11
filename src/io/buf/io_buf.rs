@@ -312,7 +312,7 @@ pub trait IoBufExt: IoBuf {
         R: RangeBounds<usize>,
         Self: Sized,
     {
-        unsafe { Slice::new(self, range) }
+        Slice::new(self, range)
     }
 }
 
@@ -324,7 +324,7 @@ pub trait IoBufMutExt: IoBufMut {
         R: RangeBounds<usize>,
         Self: Sized,
     {
-        unsafe { Slice::new(self, range) }
+        Slice::new(self, range)
     }
 }
 
