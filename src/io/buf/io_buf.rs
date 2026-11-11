@@ -320,6 +320,8 @@ pub trait IoBufExt: IoBuf {
     }
 }
 
+impl<B: IoBuf + ?Sized> IoBufExt for B {}
+
 pub trait IoBufMutExt: IoBufMut {
     fn slice<R>(mut self, range: R) -> Slice<Self>
     where
@@ -333,3 +335,5 @@ pub trait IoBufMutExt: IoBufMut {
         slice
     }
 }
+
+impl<B: IoBufMut + ?Sized> IoBufMutExt for B {}
