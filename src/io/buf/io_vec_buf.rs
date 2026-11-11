@@ -103,17 +103,39 @@ impl<T: IoBuf> IoVectoredBuf for [T] {
     fn pos_ref(&self) -> impl Iterator<Item = &[u8]> {
         self.iter().map(|v| v.pos_ref())
     }
+
+    fn pos_len(&self) -> usize {
+        self.iter().map(|v| v.pos_len()).sum()
+    }
+
+    fn pos_is_empty(&self) -> bool {
+        self.iter().all(|v| v.pos_is_empty())
+    }
 }
 
 impl<T: IoBuf, const N: usize> IoVectoredBuf for [T; N] {
     fn pos_ref(&self) -> impl Iterator<Item = &[u8]> {
         self.iter().map(|v| v.pos_ref())
     }
+    fn pos_len(&self) -> usize {
+        self.iter().map(|v| v.pos_len()).sum()
+    }
+
+    fn pos_is_empty(&self) -> bool {
+        self.iter().all(|v| v.pos_is_empty())
+    }
 }
 
 impl<T: IoBuf> IoVectoredBuf for Vec<T> {
     fn pos_ref(&self) -> impl Iterator<Item = &[u8]> {
         self.iter().map(|v| v.pos_ref())
+    }
+    fn pos_len(&self) -> usize {
+        self.iter().map(|v| v.pos_len()).sum()
+    }
+
+    fn pos_is_empty(&self) -> bool {
+        self.iter().all(|v| v.pos_is_empty())
     }
 }
 
@@ -218,17 +240,41 @@ impl<T: IoBufMut> IoVectoredBufMut for &'static mut [T] {
     fn spare_mut(&mut self) -> impl Iterator<Item = &mut [MaybeUninit<u8>]> {
         self.iter_mut().map(|v| v.spare_mut())
     }
+
+    fn spare_len(&mut self) -> usize {
+        self.iter_mut().map(|v| v.spare_len()).sum()
+    }
+
+    fn spare_is_empty(&mut self) -> bool {
+        self.iter_mut().all(|v| v.spare_is_empty())
+    }
 }
 
 impl<T: IoBufMut, const N: usize> IoVectoredBufMut for [T; N] {
     fn spare_mut(&mut self) -> impl Iterator<Item = &mut [MaybeUninit<u8>]> {
         self.iter_mut().map(|v| v.spare_mut())
     }
+
+    fn spare_len(&mut self) -> usize {
+        self.iter_mut().map(|v| v.spare_len()).sum()
+    }
+
+    fn spare_is_empty(&mut self) -> bool {
+        self.iter_mut().all(|v| v.spare_is_empty())
+    }
 }
 
 impl<T: IoBufMut> IoVectoredBufMut for Vec<T> {
     fn spare_mut(&mut self) -> impl Iterator<Item = &mut [MaybeUninit<u8>]> {
         self.iter_mut().map(|v| v.spare_mut())
+    }
+
+    fn spare_len(&mut self) -> usize {
+        self.iter_mut().map(|v| v.spare_len()).sum()
+    }
+
+    fn spare_is_empty(&mut self) -> bool {
+        self.iter_mut().all(|v| v.spare_is_empty())
     }
 }
 
