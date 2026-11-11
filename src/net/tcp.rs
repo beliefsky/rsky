@@ -34,13 +34,13 @@ impl TcpListener {
         TcpListenerOptions::default()
     }
 
-    #[inline(always)]
+    #[inline]
     pub async fn accept<A: SockAddrArgsMut>(&self, addr: A) -> io::Result<(TcpStream, A)> {
         let (socket, addr) = self.inner.accept(addr).await?;
         Ok((TcpStream { inner: socket }, addr))
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn close(self) -> impl Future<Output = io::Result<()>> {
         self.inner.close()
     }

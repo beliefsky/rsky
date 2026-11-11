@@ -87,6 +87,16 @@ impl fmt::Display for Error {
     }
 }
 
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match &self.inner {
+            Inner::Os(e) => Some(e),
+            Inner::Other(e) => Some(e.as_ref()),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ErrorKind {
     NotFound,
