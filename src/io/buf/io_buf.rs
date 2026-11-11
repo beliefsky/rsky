@@ -312,27 +312,19 @@ pub trait IoBufExt: IoBuf {
         R: RangeBounds<usize>,
         Self: Sized,
     {
-        let len = self.pos_len();
-        let slice = unsafe { Slice::new(self, range) };
-        assert!(slice.begin() <= len);
-
-        slice
+        Slice::new(self, range)
     }
 }
 
 impl<B: IoBuf + ?Sized> IoBufExt for B {}
 
 pub trait IoBufMutExt: IoBufMut {
-    fn slice<R>(mut self, range: R) -> Slice<Self>
+    fn slice<R>(self, range: R) -> Slice<Self>
     where
         R: RangeBounds<usize>,
         Self: Sized,
     {
-        let len = self.spare_len();
-        let slice = unsafe { Slice::new(self, range) };
-        assert!(slice.begin() <= len);
-
-        slice
+        Slice::new(self, range)
     }
 }
 
